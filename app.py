@@ -4,7 +4,7 @@ import math
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
-from PyQt6.QtCore import QSize, Qt, QRegularExpression
+from PyQt6.QtCore import QSize, Qt, QRegularExpression, QTimer
 from PyQt6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator, QPainter, QPen, QBrush
 from PyQt6.QtWidgets import (
     QApplication,
@@ -332,6 +332,8 @@ class MainWindow(QMainWindow):
         self.sputnik_table.cellChanged.connect(self.calculate_branch_pressure)
         self.sputnik_table.cellChanged.connect(self.calculate_full_pressure)
 
+        self.sputnik_table.itemChanged.connect(self.validate_input_data_in_tables)
+
         _layout.addWidget(self.sputnik_table)
         _box.setLayout(_layout)
         return _box
@@ -402,9 +404,50 @@ class MainWindow(QMainWindow):
         self.main_table.cellChanged.connect(self.calculate_full_pressure)
         self.main_table.cellChanged.connect(self.set_full_air_flow_in_deflector)
 
+        self.main_table.itemChanged.connect(self.validate_input_data_in_tables)
+
         _layout.addWidget(self.main_table)
         _box.setLayout(_layout)
         return _box
+
+
+    def validate_input_data_in_tables(self, item) -> None:
+        table = self.sender().objectName()
+        column = item.column()
+        # Allows values: whole numbers 0...2000
+        dimensions_pattern = pattern = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
+        # Allows values: 0...100 with or without one | two digit after separator
+        length_height_pattern = pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
+        match table:
+            case 'sputnik':
+                if column in (1, 2, 3, 4, 11):
+                    match column:
+                        
+                        case 1:
+                            # Allows values: 0...200 with or without one digit after separator
+                            pattern = r'^(?:\d{1,2}|1\d{2}|2\d{2})(?:\.\d)?$'
+                        case 2:
+                            pattern = length_height_pattern
+                        case 3 | 4 | 11:
+                            pattern = dimensions_pattern
+
+                    if not re.match(pattern, item.text()):
+                        item.setText('')
+                    else:
+                        item.setText(item.text())
+
+            case 'main':
+                if column in (1, 10, 11):
+                    match column:
+                        case 1:
+                            length_height_pattern
+                        case 10 | 11:
+                            pattern = dimensions_pattern
+
+                    if not re.match(pattern, item.text()):
+                        item.setText('')
+                    else:
+                        item.setText(item.text())
 
 
     def delete_row(self) -> None:
@@ -1475,8 +1518,6 @@ class MainWindow(QMainWindow):
             else:
                 self.deflector.item(row, 0).setFlags(Qt.ItemFlag.ItemIsEnabled)
 
-
-        self.deflector.itemChanged.connect(self.validate_deflector_input)
         self.deflector.cellChanged.connect(self.calculate_recommended_deflector_velocity)
         self.deflector.cellChanged.connect(self.calculate_required_deflector_square)
         self.deflector.cellChanged.connect(self.calculate_deflector_diameter)
@@ -1484,6 +1525,8 @@ class MainWindow(QMainWindow):
         self.deflector.cellChanged.connect(self.calculate_velocity_relation)
         self.deflector.cellChanged.connect(self.calculate_pressure_relation)
         self.deflector.cellChanged.connect(self.calculate_deflector_pressure)
+
+        self.deflector.itemChanged.connect(self.validate_deflector_input)
 
 
         _layout.addWidget(self.deflector)
@@ -1620,6 +1663,9 @@ class MainWindow(QMainWindow):
             else:
                 self.deflector.item(8, 0).setText('')
                 self.deflector.item(8, 0).setBackground(QColor(255, 255, 255))
+
+
+
 
 
 
