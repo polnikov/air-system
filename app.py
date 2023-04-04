@@ -84,7 +84,7 @@ class MainWindow(QMainWindow):
 
     def create_tab2_content(self) -> object:
         _widget = QWidget()
-        _layout = QHBoxLayout()
+        _layout = QVBoxLayout()
         hbox1 = QHBoxLayout()
         hbox1.addWidget(self.create_deflector_calculation())
 
@@ -1495,7 +1495,7 @@ class MainWindow(QMainWindow):
         _box = QGroupBox(CONSTANTS.DEFLECTOR.TITLE)
         style = self.box_style
         _box.setStyleSheet(style)
-        _box.setFixedHeight(307)
+        _box.setFixedHeight(308)
         _box.setFixedWidth(500)
 
         _layout = QHBoxLayout()
@@ -1504,7 +1504,7 @@ class MainWindow(QMainWindow):
         self.deflector.horizontalHeader().setVisible(False)
         self.deflector.verticalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
         self.deflector.verticalHeader().setStyleSheet("QHeaderView::section { border-top: 0px solid gray; border-bottom: 0px solid gray; }")
-        self.deflector.setStyleSheet("QHeaderView {padding: 5px;} QTableWidget { border: 2px solid grey; }")
+        self.deflector.setStyleSheet("QHeaderView {padding: 5px; vertical-align: top} QTableWidget { border: 2px solid grey; }")
         self.deflector.setVerticalHeaderLabels(CONSTANTS.DEFLECTOR.HEADER)
         self.deflector.setObjectName(CONSTANTS.DEFLECTOR.NAME)
 
