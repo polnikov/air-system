@@ -126,6 +126,11 @@ class CONSTANTS:
             TABLE = [line_1, line_2, line_3, line_4, line_5, line_6]
 
 
+        class DEFLECTOR_PRESSURE_RELATION:
+            X = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+            TABLE = [0.55, 0.48, 0.43, 0.38, 0.35, 0.32, 0.28, 0.24, 0.21, 0.16, 0.1]
+
+
     class DEFLECTOR:
         TITLE = 'Расчёт дефлектора'
         NAME = 'deflector'
