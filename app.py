@@ -1452,10 +1452,8 @@ class MainWindow(QMainWindow):
         _box = QGroupBox(CONSTANTS.DEFLECTOR.TITLE)
         style = self.box_style
         _box.setStyleSheet(style)
-        # _box.setFixedHeight(275)
-        # _box.setFixedWidth(509)
-        _box.setFixedHeight(350)
-        _box.setFixedWidth(550)
+        _box.setFixedHeight(307)
+        _box.setFixedWidth(500)
 
         _layout = QHBoxLayout()
 
@@ -1463,8 +1461,7 @@ class MainWindow(QMainWindow):
         self.deflector.horizontalHeader().setVisible(False)
         self.deflector.verticalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
         self.deflector.verticalHeader().setStyleSheet("QHeaderView::section { border-top: 0px solid gray; border-bottom: 0px solid gray; }")
-        self.deflector.setStyleSheet("QTableWidget { border: 2px solid grey; }")
-        self.deflector.setStyleSheet("QHeaderView {padding: 5px;}")
+        self.deflector.setStyleSheet("QHeaderView {padding: 5px;} QTableWidget { border: 2px solid grey; }")
         self.deflector.setVerticalHeaderLabels(CONSTANTS.DEFLECTOR.HEADER)
         self.deflector.setObjectName(CONSTANTS.DEFLECTOR.NAME)
 
@@ -1486,10 +1483,12 @@ class MainWindow(QMainWindow):
         self.deflector.cellChanged.connect(self.calculate_real_deflector_velocity)
         self.deflector.cellChanged.connect(self.calculate_velocity_relation)
         self.deflector.cellChanged.connect(self.calculate_pressure_relation)
+        self.deflector.cellChanged.connect(self.calculate_deflector_pressure)
 
 
         _layout.addWidget(self.deflector)
         _box.setLayout(_layout)
+        # _box.adjustSize()
         return _box
 
 
@@ -1605,6 +1604,22 @@ class MainWindow(QMainWindow):
                 self.deflector.item(7, 0).setText(result)
             else:
                 self.deflector.item(7, 0).setText('')
+
+
+    def calculate_deflector_pressure(self, row, column) -> None:
+        if (row, column) in ((0, 0), (7, 0)):
+            wind_velocity = self.deflector.item(0, 0).text()
+            pressure_relation = self.deflector.item(7, 0).text()
+            if all([wind_velocity, pressure_relation]):
+                wind_velocity = float(wind_velocity)
+                pressure_relation = float(pressure_relation)
+                result = pressure_relation * ((353 / (273.15 + 5)) * pow(wind_velocity, 2) / 2)
+                result = "{:.2f}".format(round(result, 2))
+                self.deflector.item(8, 0).setText(result)
+                self.deflector.item(8, 0).setBackground(QColor(153, 255, 255))
+            else:
+                self.deflector.item(8, 0).setText('')
+                self.deflector.item(8, 0).setBackground(QColor(255, 255, 255))
 
 
 
