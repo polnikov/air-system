@@ -1,7 +1,7 @@
 import os
 import re
 import math
-from numpy import array, around, pi
+from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator
 
 from PyQt6.QtCore import QSize, Qt, QRegularExpression
