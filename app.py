@@ -2,7 +2,7 @@ import os
 import re
 import math
 from numpy import array, around
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, interp1d
 
 from PyQt6.QtCore import QSize, Qt, QRegularExpression
 from PyQt6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator, QPainter, QPen, QBrush
@@ -1485,6 +1485,7 @@ class MainWindow(QMainWindow):
         self.deflector.cellChanged.connect(self.calculate_deflector_diameter)
         self.deflector.cellChanged.connect(self.calculate_real_deflector_velocity)
         self.deflector.cellChanged.connect(self.calculate_velocity_relation)
+        self.deflector.cellChanged.connect(self.calculate_pressure_relation)
 
 
         _layout.addWidget(self.deflector)
@@ -1590,6 +1591,20 @@ class MainWindow(QMainWindow):
             else:
                 self.deflector.item(6, 0).setText('')
 
+
+    def calculate_pressure_relation(self, row, column) -> None:
+        if row == 6 and column == 0:
+            velocity_relation = self.deflector.item(6, 0).text()
+            if velocity_relation:
+                x = float(velocity_relation)
+                f = interp1d(
+                    CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.X,
+                    CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.TABLE
+                )
+                result = "{:.2f}".format(around(f(x), 2))
+                self.deflector.item(7, 0).setText(result)
+            else:
+                self.deflector.item(7, 0).setText('')
 
 
 
