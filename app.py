@@ -1,6 +1,7 @@
 import os
 import re
-from numpy import array, around
+import math
+from numpy import array, around, pi
 from scipy.interpolate import RegularGridInterpolator
 
 from PyQt6.QtCore import QSize, Qt, QRegularExpression
@@ -1482,6 +1483,7 @@ class MainWindow(QMainWindow):
         self.deflector.cellChanged.connect(self.calculate_recommended_deflector_velocity)
         self.deflector.cellChanged.connect(self.calculate_required_deflector_square)
         self.deflector.cellChanged.connect(self.calculate_deflector_diameter)
+        self.deflector.cellChanged.connect(self.calculate_real_deflector_velocity)
 
 
         _layout.addWidget(self.deflector)
@@ -1562,7 +1564,18 @@ class MainWindow(QMainWindow):
                 self.deflector.item(3, 0).setText('')
 
 
-
+    def calculate_real_deflector_velocity(self, row, column) -> None:
+        if (row, column) in ((2, 0), (4, 0)):
+            air_flow = self.deflector.item(2, 0).text()
+            diameter = self.deflector.item(4, 0).text()
+            print(diameter)
+            if all([air_flow, diameter]) and diameter != 'Нет значения!':
+                air_flow = float(air_flow)
+                diameter = float(diameter)
+                result = "{:.2f}".format(round(air_flow / (3_600 * math.pi * (pow(diameter / 1_000, 2) / 4)), 2))
+                self.deflector.item(5, 0).setText(result)
+            else:
+                self.deflector.item(5, 0).setText('')
 
 
 
