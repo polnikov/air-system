@@ -1454,12 +1454,12 @@ class MainWindow(QMainWindow):
         _box.setStyleSheet(style)
         # _box.setFixedHeight(275)
         # _box.setFixedWidth(509)
-        _box.setFixedHeight(300)
+        _box.setFixedHeight(350)
         _box.setFixedWidth(550)
 
         _layout = QHBoxLayout()
 
-        self.deflector = QTableWidget(8, 1)
+        self.deflector = QTableWidget(9, 1)
         self.deflector.horizontalHeader().setVisible(False)
         self.deflector.verticalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
         self.deflector.verticalHeader().setStyleSheet("QHeaderView::section { border-top: 0px solid gray; border-bottom: 0px solid gray; }")
@@ -1484,6 +1484,7 @@ class MainWindow(QMainWindow):
         self.deflector.cellChanged.connect(self.calculate_required_deflector_square)
         self.deflector.cellChanged.connect(self.calculate_deflector_diameter)
         self.deflector.cellChanged.connect(self.calculate_real_deflector_velocity)
+        self.deflector.cellChanged.connect(self.calculate_velocity_relation)
 
 
         _layout.addWidget(self.deflector)
@@ -1568,7 +1569,6 @@ class MainWindow(QMainWindow):
         if (row, column) in ((2, 0), (4, 0)):
             air_flow = self.deflector.item(2, 0).text()
             diameter = self.deflector.item(4, 0).text()
-            print(diameter)
             if all([air_flow, diameter]) and diameter != 'Нет значения!':
                 air_flow = float(air_flow)
                 diameter = float(diameter)
@@ -1578,6 +1578,17 @@ class MainWindow(QMainWindow):
                 self.deflector.item(5, 0).setText('')
 
 
+    def calculate_velocity_relation(self, row, column) -> None:
+        if (row, column) in ((0, 0), (5, 0)):
+            wind_velocity = self.deflector.item(0, 0).text()
+            real_velocity = self.deflector.item(5, 0).text()
+            if all([wind_velocity, real_velocity]):
+                wind_velocity = float(wind_velocity)
+                real_velocity = float(real_velocity)
+                result = "{:.2f}".format(round(real_velocity / wind_velocity, 2))
+                self.deflector.item(6, 0).setText(result)
+            else:
+                self.deflector.item(6, 0).setText('')
 
 
 
