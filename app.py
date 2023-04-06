@@ -4,8 +4,8 @@ import math
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
-from PyQt6.QtCore import QSize, Qt, QRegularExpression, QTimer
-from PyQt6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator, QPainter, QPen, QBrush
+from PyQt6.QtCore import QSize, Qt, QRegularExpression
+from PyQt6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -18,17 +18,13 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QVBoxLayout,
     QComboBox,
-    QMenu,
-    QMenuBar,
     QGroupBox,
     QRadioButton,
     QComboBox,
-    QItemDelegate,
     QHBoxLayout,
     QWidget,
     QTabWidget,
     QTableWidgetItem,
-    QHeaderView,
 )
 
 from constants import CONSTANTS
@@ -43,6 +39,10 @@ try:
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
+
+
+
+from PyQt6.QtGui import QFontDatabase, QFont
 
 
 class MainWindow(QMainWindow):
@@ -69,6 +69,7 @@ class MainWindow(QMainWindow):
         hbox1.addWidget(self.create_sputnik_table_box())
 
         hbox2 = QHBoxLayout()
+        hbox2.addWidget(self.create_deflector_checkbox())
         hbox2.addWidget(self.create_buttons_box())
         
         hbox3 = QVBoxLayout()
@@ -160,6 +161,7 @@ class MainWindow(QMainWindow):
         self.klapan_air_flow_label = QLabel(f'{self.klapan_widget_value} м3/ч')
 
         self.klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
+        self.klapan_widget.currentTextChanged.connect(self.calculate_klapan_pressure_loss)
 
         klapan_input_label_1 = QLabel(CONSTANTS.INIT_DATA.KLAPAN_INPUT_LABEL_1)
         self.klapan_input = QLineEdit()
@@ -168,7 +170,7 @@ class MainWindow(QMainWindow):
         self.klapan_input.setFixedHeight(22)
         self.klapan_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
-        klapan_input_regex = QRegularExpression("^(?:[1-9]|[1-9]\d|100)(?:\.\d{1,2})?$")
+        klapan_input_regex = QRegularExpression("^(?:[1-9]|[1-9]\d|100)(?:)?$")
         klapan_input_validator = QRegularExpressionValidator(klapan_input_regex)
         self.klapan_input.setValidator(klapan_input_validator)
         self.klapan_input.textChanged.connect(self.calculate_klapan_pressure_loss)
@@ -186,10 +188,38 @@ class MainWindow(QMainWindow):
         return _box
 
 
+    def create_deflector_checkbox(self) -> object:
+        _widget = QWidget()
+        _layout = QHBoxLayout()
+
+        label = QLabel('Добавить дефлектор')
+        self.activate_deflector = QCheckBox()
+        # self.activate_deflector.setDisabled(True)
+        self.activate_deflector.setChecked(False)
+        self.activate_deflector.stateChanged.connect(self.show_deflector_column_in_main_table)
+        self.activate_deflector.stateChanged.connect(self.set_deflector_pressure_in_main_table)
+        # self.activate_deflector.stateChanged.connect(self.set_deflector_pressure_in_main_table)
+
+
+
+
+
+
+
+        _layout.addWidget(label)
+        _layout.addWidget(self.activate_deflector)
+        _widget.setLayout(_layout)
+        return _widget
+
+
     def create_buttons_box(self) -> object:
         _widget = QWidget()
         _layout = QHBoxLayout()
         _layout.addStretch()
+
+        self.last_floor_row_button = QPushButton()
+        self.last_floor_row_button.setText(CONSTANTS.BUTTONS.LAST_FLOOR_BUTTON_TITLE)
+        _layout.addWidget(self.last_floor_row_button)
 
         self.add_row_button = QPushButton()
         self.add_row_button.setText(CONSTANTS.BUTTONS.ADD_BUTTON_TITLE)
@@ -200,6 +230,8 @@ class MainWindow(QMainWindow):
         self.add_row_button.setToolTip(CONSTANTS.BUTTONS.ADD_BUTTON_TOOLTIP)
         _layout.addWidget(self.add_row_button)
         self.add_row_button.clicked.connect(self.add_row)
+        self.add_row_button.clicked.connect(self.set_floor_number_in_main_table)
+        # self.add_row_button.clicked.connect(self._set_deflector_pressure_in_main_table)
 
         self.delete_row_button = QPushButton()
         self.delete_row_button.setText(CONSTANTS.BUTTONS.DELETE_BUTTON_TITLE)
@@ -210,6 +242,10 @@ class MainWindow(QMainWindow):
         self.delete_row_button.setToolTip(CONSTANTS.BUTTONS.DELETE_BUTTON_TOOLTIP)
         _layout.addWidget(self.delete_row_button)
         self.delete_row_button.clicked.connect(self.delete_row)
+        self.delete_row_button.clicked.connect(self.update_full_air_flow_in_deflector_after_delete_row)
+        self.delete_row_button.clicked.connect(self.update_air_flow_column_in_main_table_after_delete_row)
+        self.delete_row_button.clicked.connect(self.set_floor_number_in_main_table)
+        # self.delete_row_button.clicked.connect(self._set_deflector_pressure_in_main_table)
 
         _widget.setLayout(_layout)
         return _widget
@@ -305,11 +341,16 @@ class MainWindow(QMainWindow):
         self.radio_button2 = self.sputnik_table.cellWidget(3, 14).findChild(QRadioButton)
         self.radio_button1.setChecked(True)
 
+        self.radio_button1.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIP_1)
+        self.radio_button2.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIP_2)
+
         # обработчики
         self.radio_button1.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_1)
         self.radio_button2.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_2)
+
         self.radio_button2.clicked.connect(self.uncheck_radio_button_1)
         self.radio_button1.clicked.connect(self.uncheck_radio_button_2)
+
         self.radio_button1.clicked.connect(self.calculate_kms_by_radiobutton_1)
         self.radio_button2.clicked.connect(self.calculate_kms_by_radiobutton_2)
         self.radio_button1.clicked.connect(self.calculate_branch_pressure_by_radiobutton_1)
@@ -317,7 +358,12 @@ class MainWindow(QMainWindow):
         self.radio_button1.clicked.connect(self.calculate_full_pressure_by_radiobutton_1)
         self.radio_button2.clicked.connect(self.calculate_full_pressure_by_radiobutton_2)
 
+        # self.radio_button1.clicked.connect(self.set_deflector_pressure_in_main_table_by_radiobutton_1)
+        # self.radio_button2.clicked.connect(self.set_deflector_pressure_in_main_table_by_radiobutton_2)
+
         self.sputnik_table.cellChanged.connect(self.set_sputnik_airflow_in_main_table)
+        self.sputnik_table.cellChanged.connect(self.set_deflector_pressure_in_main_table)
+
         self.sputnik_table.cellChanged.connect(self.calculate_klapan_pressure_loss)
         self.sputnik_table.cellChanged.connect(self.calculate_air_velocity)
         self.sputnik_table.cellChanged.connect(self.calculate_diameter)
@@ -362,9 +408,7 @@ class MainWindow(QMainWindow):
             for col in range(num_cols):
                 self.main_table.setItem(row, col, QTableWidgetItem())
                 self.main_table.item(row, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # добавление и выравнивание по центру нумерации этажей
-        self.set_floor_number_in_main_table(num_rows)
+            self.main_table.item(row, 0).setText(str(row+1))
 
         # установка ширины столбцов
         for i in range(num_cols):
@@ -383,6 +427,7 @@ class MainWindow(QMainWindow):
                 for row in range(num_rows):
                     self.main_table.item(row, i).setBackground(QColor(229, 255, 204))
 
+        # self.main_table.setSpan(0, 6, 0, 0)
         self.main_table.setColumnHidden(6, True)
 
         # обработчики
@@ -417,7 +462,7 @@ class MainWindow(QMainWindow):
         # Allows values: whole numbers 0...2000
         dimensions_pattern = pattern = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
         # Allows values: 0...100 with or without one | two digit after separator
-        length_height_pattern = pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
+        length_height_kms_pattern = pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
         match table:
             case 'sputnik':
                 if column in (1, 2, 3, 4, 11):
@@ -426,9 +471,9 @@ class MainWindow(QMainWindow):
                         case 1:
                             # Allows values: 0...200 with or without one digit after separator
                             pattern = r'^(?:\d{1,2}|1\d{2}|2\d{2})(?:\.\d)?$'
-                        case 2:
-                            pattern = length_height_pattern
-                        case 3 | 4 | 11:
+                        case 2 | 11:
+                            pattern = length_height_kms_pattern
+                        case 3 | 4:
                             pattern = dimensions_pattern
 
                     if not re.match(pattern, item.text()):
@@ -440,7 +485,7 @@ class MainWindow(QMainWindow):
                 if column in (1, 10, 11):
                     match column:
                         case 1:
-                            length_height_pattern
+                            length_height_kms_pattern
                         case 10 | 11:
                             pattern = dimensions_pattern
 
@@ -455,9 +500,6 @@ class MainWindow(QMainWindow):
         if num_rows > 1:
             selected_row = self.main_table.currentRow()
             self.main_table.removeRow(selected_row)
-            num_rows = self.main_table.rowCount()
-            self.set_floor_number_in_main_table(num_rows)
-            self.update_full_air_flow_in_deflector_after_delete_row(num_rows)
 
 
     def add_row(self) -> None:
@@ -490,8 +532,8 @@ class MainWindow(QMainWindow):
         init_flow = self.main_table.item(0, 3)
         last_flow = self.main_table.item(num_rows-1, 3)
         if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
-            flow = float(init_flow.text()) + float(last_flow.text())
-            flow = "{:.1f}".format(round(flow, 1))
+            flow = int(init_flow.text()) + int(last_flow.text())
+            flow = str(flow)
             self.main_table.setItem(num_rows, 3, QTableWidgetItem())
             self.main_table.item(num_rows, 3).setText(flow)
             self.main_table.item(num_rows, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -587,23 +629,33 @@ class MainWindow(QMainWindow):
             klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(row)
             hand_klapan_flow = self.klapan_input.text()
             current_klapan_flow = self.sputnik_table.item(0, 1).text()
+            self._calculate_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
+
         elif isinstance(sender, QLineEdit):
             klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
             hand_klapan_flow = row
             current_klapan_flow = self.sputnik_table.item(0, 1).text()
-        elif isinstance(sender, QTableWidget):
-            klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
-            hand_klapan_flow = self.klapan_input.text()
-            current_klapan_flow = self.sputnik_table.item(0, 1).text()
+            self._calculate_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
 
+        elif isinstance(sender, QTableWidget):
+            if row == 0 and column == 1:
+                klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
+                hand_klapan_flow = self.klapan_input.text()
+                current_klapan_flow = self.sputnik_table.item(0, 1).text()
+                self._calculate_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
+
+
+    def _calculate_klapan_pressure_loss(self, klapan_widget_value, hand_klapan_flow, current_klapan_flow) -> None:
         if hand_klapan_flow:
             klapan_flow = hand_klapan_flow
         else:
             klapan_flow = klapan_widget_value
 
         if all([current_klapan_flow, klapan_flow]):
-            pressure_loss = 10 * pow(float(current_klapan_flow) / float(klapan_flow), 2)
-            pressure_loss = "{:.4f}".format(round(pressure_loss, 4))
+            current_klapan_flow = int(current_klapan_flow)
+            klapan_flow = int(klapan_flow)
+            pressure_loss = 10 * pow(current_klapan_flow / klapan_flow, 2)
+            pressure_loss = "{:.2f}".format(round(pressure_loss, 2))
             self.sputnik_table.item(0, 13).setText(pressure_loss)
             self.sputnik_table.item(0, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.sputnik_table.item(0, 13).setBackground(QColor(153, 255, 255))
@@ -707,7 +759,7 @@ class MainWindow(QMainWindow):
                             velocity = float(velocity)
                             density = 353 / (273.15 + temperature)
                             dynamic = velocity * velocity * density / 2
-                            dynamic = "{:.4f}".format(round(dynamic, 4))
+                            dynamic = "{:.2f}".format(round(dynamic, 2))
                             self.sputnik_table.item(row, 10).setText(dynamic)
                         else:
                             self.sputnik_table.item(row, 10).setText('')
@@ -721,7 +773,7 @@ class MainWindow(QMainWindow):
                             velocity = float(velocity)
                             density = 353 / (273.15 + temperature)
                             dynamic = velocity * velocity * density / 2
-                            dynamic = "{:.4f}".format(round(dynamic, 4))
+                            dynamic = "{:.2f}".format(round(dynamic, 2))
                             self.main_table.item(row, 17).setText(dynamic)
                             self.main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                         else:
@@ -739,7 +791,7 @@ class MainWindow(QMainWindow):
                     velocity = float(velocity)
                     density = 353 / (273.15 + temperature)
                     dynamic = velocity * velocity * density / 2
-                    dynamic = "{:.4f}".format(round(dynamic, 4))
+                    dynamic = "{:.2f}".format(round(dynamic, 2))
                     self.sputnik_table.item(row, 10).setText(dynamic)
                     self.sputnik_table.item(row, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
@@ -753,7 +805,7 @@ class MainWindow(QMainWindow):
                     velocity = float(velocity)
                     density = 353 / (273.15 + temperature)
                     dynamic = velocity * velocity * density / 2
-                    dynamic = "{:.4f}".format(round(dynamic, 4))
+                    dynamic = "{:.2f}".format(round(dynamic, 2))
                     self.main_table.item(row, 17).setText(dynamic)
                 else:
                     self.main_table.item(row, 17).setText('')
@@ -773,20 +825,23 @@ class MainWindow(QMainWindow):
                         diameter = self.sputnik_table.item(row, 6).text()
                         dynamic = self.sputnik_table.item(row, 10)
                         if all([temperature, diameter, velocity, surface, dynamic]):
-                            temperature = float(temperature)
-                            velocity = float(velocity)
-                            diameter = float(diameter)
-                            surface = float(surface)
-                            dynamic = float(dynamic.text())
-                            mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
-                            density = 353 / (273.15 + temperature)
-                            v = mu / density
-                            re = velocity * diameter / v
-                            lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
-                            resistivity = (lam / diameter) * dynamic
-                            resistivity = "{:.4f}".format(round(resistivity, 4))
-                            self.sputnik_table.item(row, 7).setText(resistivity)
-                            self.sputnik_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            try:
+                                temperature = float(temperature)
+                                velocity = float(velocity)
+                                diameter = float(diameter)
+                                surface = float(surface)
+                                dynamic = float(dynamic.text())
+                                mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
+                                density = 353 / (273.15 + temperature)
+                                v = mu / density
+                                re = velocity * diameter / v
+                                lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
+                                resistivity = (lam / diameter) * dynamic
+                                resistivity = "{:.4f}".format(round(resistivity, 4))
+                                self.sputnik_table.item(row, 7).setText(resistivity)
+                                self.sputnik_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            except ZeroDivisionError:
+                                self.sputnik_table.item(row, 7).setText('')
                         else:
                             self.sputnik_table.item(row, 7).setText('')
                 case CONSTANTS.MAIN_TABLE.NAME:
@@ -887,7 +942,7 @@ class MainWindow(QMainWindow):
             one_side_flow = self.sputnik_table.item(1, 1).text()
 
             if one_side_flow:
-                self.main_table.item(0, 3).setText("{:.1f}".format(float(one_side_flow)))
+                self.main_table.item(0, 3).setText(str(int(one_side_flow)))
                 self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
                 self.fill_air_flow_column_in_main_table(one_side_flow)
@@ -899,13 +954,15 @@ class MainWindow(QMainWindow):
     def set_sputnik_airflow_in_main_table_by_radiobutton_2(self, checked) -> None:
         if checked:
             self.radio_button1.setChecked(False)
+            one_side_flow = self.sputnik_table.item(1, 1).text()
             two_side_flow = self.sputnik_table.item(3, 1).text()
 
-            if two_side_flow:
-                self.main_table.item(0, 3).setText("{:.1f}".format(float(two_side_flow)))
+            if all([one_side_flow, two_side_flow]):
+                flow = int(one_side_flow) + int(two_side_flow)
+                self.main_table.item(0, 3).setText(str(flow))
                 self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(two_side_flow)
+                self.fill_air_flow_column_in_main_table(flow)
             else:
                 self.main_table.item(0, 3).setText('')
                 self.clean_air_flow_column_in_main_table()
@@ -918,15 +975,16 @@ class MainWindow(QMainWindow):
 
         if (row, column) in flows_cells:
             if all([self.radio_button1.isChecked(), one_side_flow]):
-                self.main_table.item(0, 3).setText("{:.1f}".format(float(one_side_flow)))
+                self.main_table.item(0, 3).setText(str(int(one_side_flow)))
                 self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
                 self.fill_air_flow_column_in_main_table(one_side_flow)
-            elif all([self.radio_button2.isChecked(), two_side_flow]):
-                self.main_table.item(0, 3).setText("{:.1f}".format(float(two_side_flow)))
+            elif all([self.radio_button2.isChecked(), one_side_flow, two_side_flow]):
+                flow = int(one_side_flow) + int(two_side_flow)
+                self.main_table.item(0, 3).setText(str(flow))
                 self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(two_side_flow)
+                self.fill_air_flow_column_in_main_table(flow)
             else:
                 self.main_table.item(0, 3).setText('')
                 self.clean_air_flow_column_in_main_table()
@@ -935,10 +993,22 @@ class MainWindow(QMainWindow):
     def fill_air_flow_column_in_main_table(self, flow) -> None:
         num_rows = self.main_table.rowCount()
         for row in range(1, num_rows):
-            value = float(flow) + float(self.main_table.item(row-1, 3).text())
-            value = "{:.1f}".format(round(value, 1))
+            value = int(flow) + int(self.main_table.item(row-1, 3).text())
+            value = str(value)
             self.main_table.item(row, 3).setText(value)
             self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+
+    def update_air_flow_column_in_main_table_after_delete_row(self) -> None:
+        init_flow = self.main_table.item(0, 3)
+        if all([init_flow, init_flow.text() != '']):
+            init_flow = int(init_flow.text())
+            num_rows = self.main_table.rowCount()
+            for row in range(1, num_rows):
+                value = int(init_flow) + int(self.main_table.item(row-1, 3).text())
+                value = str(value)
+                self.main_table.item(row, 3).setText(value)
+                self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
     def clean_air_flow_column_in_main_table(self) -> None:
@@ -958,13 +1028,13 @@ class MainWindow(QMainWindow):
                 if column in (3, 4):
                     a = self.sputnik_table.item(row, 3).text()
                     b = self.sputnik_table.item(row, 4).text()
-                    if all([a, b]):
+                    if all([a, b]) and all([100 <= int(a) <= 1_500, 100 <= int(b) <= 1_500]):
                         a, b = int(a), int(b)
                         m = interpolator((b, a))
                         m = "{:.3f}".format(around(m, 3))
                         self.sputnik_table.item(row, 8).setText(m)
                         self.sputnik_table.item(row, 8).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    elif a:
+                    elif a and 100 <= int(a) <= 1_500:
                         a = int(a)
                         m = interpolator((a, a))
                         m = "{:.3f}".format(around(m, 3))
@@ -976,14 +1046,14 @@ class MainWindow(QMainWindow):
                 if column in (10, 11):
                     a = self.main_table.item(row, 10)
                     b = self.main_table.item(row, 11)
-                    if all([a, b]) and all([a.text() != '', b.text() != '']):
+                    if all([a, b]) and all([a.text() != '', b.text() != '']) and all([100 <= int(a.text()) <= 1_500, 100 <= int(b.text()) <= 1_500]):
                         a, b = int(a.text()), int(b.text())
                         m = interpolator((b, a))
                         m = "{:.3f}".format(around(m, 3))
                         self.main_table.setItem(row, 15, QTableWidgetItem())
                         self.main_table.item(row, 15).setText(m)
                         self.main_table.item(row, 15).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    elif a and a.text() != '':
+                    elif a and a.text() != '' and 100 <= int(a.text()) <= 1_500:
                         a = int(a.text())
                         m = interpolator((a, a))
                         m = "{:.3f}".format(around(m, 3))
@@ -1037,7 +1107,7 @@ class MainWindow(QMainWindow):
             if all([dynamic, kms]):
                 dynamic = float(dynamic)
                 kms = float(kms)
-                result = "{:.4f}".format(round(dynamic * kms, 4))
+                result = "{:.2f}".format(round(dynamic * kms, 2))
                 self.sputnik_table.item(row, 12).setText(result)
                 self.sputnik_table.item(row, 12).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
@@ -1051,7 +1121,7 @@ class MainWindow(QMainWindow):
             if all([linear_pressure_loss, local_pressure_loss]):
                 linear_pressure_loss = float(linear_pressure_loss)
                 local_pressure_loss = float(local_pressure_loss)
-                result = "{:.4f}".format(round(linear_pressure_loss + local_pressure_loss, 4))
+                result = "{:.2f}".format(round(linear_pressure_loss + local_pressure_loss, 2))
                 self.sputnik_table.item(row, 13).setText(result)
                 self.sputnik_table.item(row, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
@@ -1183,7 +1253,7 @@ class MainWindow(QMainWindow):
                 kms = float(kms.text())
                 dynamic = float(dynamic.text())
                 result = kms * dynamic
-                result = "{:.4f}".format(round(result, 4))
+                result = "{:.2f}".format(round(result, 2))
                 self.main_table.setItem(row, 18, QTableWidgetItem())
                 self.main_table.item(row, 18).setText(result)
                 self.main_table.item(row, 18).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1226,7 +1296,7 @@ class MainWindow(QMainWindow):
                 if kms and kms.text() != '':
                     kms = float(kms.text())
                     result = kms * dynamic
-                    result = "{:.4f}".format(round(result, 4))
+                    result = "{:.2f}".format(round(result, 2))
                     self.main_table.setItem(row, 19, QTableWidgetItem())
                     self.main_table.item(row, 19).setText(result)
                     self.main_table.item(row, 19).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1249,7 +1319,7 @@ class MainWindow(QMainWindow):
             if all([klapan_pressure, one_side_pressure]):
                 klapan_pressure = float(klapan_pressure)
                 one_side_pressure = float(one_side_pressure)
-                first_result = "{:.4f}".format(round((klapan_pressure + one_side_pressure), 4))
+                first_result = "{:.2f}".format(round((klapan_pressure + one_side_pressure), 2))
                 self.sputnik_table.item(2, 13).setText(first_result)
                 self.sputnik_table.item(2, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.sputnik_table.item(2, 13).setBackground(QColor(153, 255, 255))
@@ -1261,7 +1331,7 @@ class MainWindow(QMainWindow):
             if all([klapan_pressure, two_side_pressure]):
                 klapan_pressure = float(klapan_pressure)
                 two_side_pressure = float(two_side_pressure)
-                second_result = "{:.4f}".format(round((klapan_pressure + two_side_pressure), 4))
+                second_result = "{:.2f}".format(round((klapan_pressure + two_side_pressure), 2))
                 self.sputnik_table.item(4, 13).setText(second_result)
                 self.sputnik_table.item(4, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.sputnik_table.item(4, 13).setBackground(QColor(153, 255, 255))
@@ -1284,7 +1354,8 @@ class MainWindow(QMainWindow):
                 self.main_table.item(row, 7).setText('')
 
 
-    def set_floor_number_in_main_table(self, num_rows) -> None:
+    def set_floor_number_in_main_table(self) -> None:
+        num_rows = self.main_table.rowCount()
         for row in range(num_rows):
             self.main_table.item(row, 0).setText(str(row+1))
             self.main_table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1427,8 +1498,11 @@ class MainWindow(QMainWindow):
     def calculate_full_pressure_by_radiobutton_2(self, checked) -> None:
         if checked:
             self.radio_button1.setChecked(False)
-            klapan_full_pressure = self.sputnik_table.item(4, 13).text()
-            self._calculate_full_pressure_by_radiobutton(klapan_full_pressure)
+            klapan_full_pressure_1 = self.sputnik_table.item(2, 13).text()
+            klapan_full_pressure_2 = self.sputnik_table.item(4, 13).text()
+            if all([klapan_full_pressure_1, klapan_full_pressure_2]):
+                klapan_full_pressure = str(max(float(klapan_full_pressure_1), float(klapan_full_pressure_2)))
+                self._calculate_full_pressure_by_radiobutton(klapan_full_pressure)
 
 
     def _calculate_full_pressure_by_radiobutton(self, klapan_full_pressure) -> None:
@@ -1455,7 +1529,7 @@ class MainWindow(QMainWindow):
                 sum_linear_pressure = sum(map(float, all_linear_pressure))
 
                 result = klapan_full_pressure + branch_pressure + sum_pass_pressure + sum_linear_pressure
-                result = "{:.4f}".format(round(result, 4))
+                result = "{:.2f}".format(round(result, 2))
                 self.main_table.setItem(row, 20, QTableWidgetItem())
                 self.main_table.item(row, 20).setText(result)
                 self.main_table.item(row, 20).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1485,10 +1559,6 @@ class MainWindow(QMainWindow):
                 self.main_table.item(num_rows, col).setText('')
                 if col == 21:
                     self.main_table.item(num_rows, col).setBackground(QColor(255, 255, 255))
-
-
-
-
 
 
     def create_deflector_calculation(self) -> object:
@@ -1526,6 +1596,9 @@ class MainWindow(QMainWindow):
         self.deflector.cellChanged.connect(self.calculate_pressure_relation)
         self.deflector.cellChanged.connect(self.calculate_deflector_pressure)
 
+        self.deflector.cellChanged.connect(self.set_deflector_pressure_in_main_table)
+
+        self.deflector.itemChanged.connect(self.update_deflector_pressure_in_main_table)
         self.deflector.itemChanged.connect(self.validate_deflector_input)
 
 
@@ -1567,7 +1640,8 @@ class MainWindow(QMainWindow):
                 self.deflector.item(2, 0).setText('')
 
 
-    def update_full_air_flow_in_deflector_after_delete_row(self, num_rows) -> None:
+    def update_full_air_flow_in_deflector_after_delete_row(self) -> None:
+        num_rows = self.main_table.rowCount()
         last_row_main_table = num_rows - 1
         air_flow = self.main_table.item(last_row_main_table, 3)
         if air_flow and air_flow.text() != '':
@@ -1605,7 +1679,7 @@ class MainWindow(QMainWindow):
                         self.deflector.item(4, 0).setBackground(QColor(229, 255, 204))
                         self.deflector.item(4, 0).setText('Нет значения!')
             else:
-                self.deflector.item(3, 0).setText('')
+                self.deflector.item(4, 0).setText('')
 
 
     def calculate_real_deflector_velocity(self, row, column) -> None:
@@ -1638,13 +1712,16 @@ class MainWindow(QMainWindow):
         if row == 6 and column == 0:
             velocity_relation = self.deflector.item(6, 0).text()
             if velocity_relation:
-                x = float(velocity_relation)
-                f = interp1d(
-                    CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.X,
-                    CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.TABLE
-                )
-                result = "{:.2f}".format(around(f(x), 2))
-                self.deflector.item(7, 0).setText(result)
+                try:
+                    x = float(velocity_relation)
+                    f = interp1d(
+                        CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.X,
+                        CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.TABLE
+                    )
+                    result = "{:.2f}".format(around(f(x), 2))
+                    self.deflector.item(7, 0).setText(result)
+                except ValueError:
+                    self.deflector.item(7, 0).setText('')
             else:
                 self.deflector.item(7, 0).setText('')
 
@@ -1663,6 +1740,118 @@ class MainWindow(QMainWindow):
             else:
                 self.deflector.item(8, 0).setText('')
                 self.deflector.item(8, 0).setBackground(QColor(255, 255, 255))
+
+
+    # def set_deflector_pressure_in_main_table_by_radiobutton_1(self, checked) -> None:
+    #     if checked:
+    #         self.radio_button2.setChecked(False)
+    #         if self.activate_deflector.isChecked():
+    #             self._join_deflector_column_cells_in_main_table()
+    #             self._set_deflector_pressure_in_main_table()
+
+
+    # def set_deflector_pressure_in_main_table_by_radiobutton_2(self, checked) -> None:
+    #     if checked:
+    #         self.radio_button1.setChecked(False)
+    #         if self.activate_deflector.isChecked():
+    #             self._join_deflector_column_cells_in_main_table()
+    #             self._set_deflector_pressure_in_main_table()
+
+
+    def _join_deflector_column_cells_in_main_table(self) -> None:
+        num_rows = self.main_table.rowCount()
+        self.main_table.setSpan(0, 6, num_rows, 1)
+
+
+    # def set_deflector_pressure_in_main_table(self, row, column) -> None:
+    #     table = self.sender().objectName()
+    #     match table:
+    #         case 'deflector':
+    #             if row == 8 and column == 0:
+    #                 self._set_deflector_pressure_in_main_table()
+    #         case 'sputnik':
+    #             if (row, column) in ((1, 1), (3, 1)):
+    #                 self._set_deflector_pressure_in_main_table()
+
+
+    # def _set_deflector_pressure_in_main_table(self) -> None:
+    #     self._join_deflector_column_cells_in_main_table()
+    #     deflector_pressure = self.deflector.item(8, 0).text()
+    #     if deflector_pressure != '':
+    #         self.main_table.item(0, 6).setText(deflector_pressure)
+    #         self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
+    #     else:
+    #         self.main_table.item(0, 6).setText('')
+
+
+    # def activate_deflector_checkbox(self, row, column) -> None:
+    #     if row == 8 and column == 0:
+    #         deflector_pressure = self.deflector.item(8, 0).text()
+    #         if deflector_pressure:
+    #             self.activate_deflector.setDisabled(False)
+    #         else:
+    #             self.activate_deflector.setDisabled(True)
+
+
+    def show_deflector_column_in_main_table(self, state) -> None:
+        if state == 2:
+            self.main_table.setColumnHidden(6, False)
+            self._join_deflector_column_cells_in_main_table()
+        else:
+            self.main_table.setColumnHidden(6, True)
+
+
+    def set_deflector_pressure_in_main_table(self, state) -> None:
+        deflector_pressure = self.deflector.item(8, 0).text()
+        if state == 2 and deflector_pressure:
+            self.main_table.item(0, 6).setText(deflector_pressure)
+            self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
+        else:
+            self.main_table.item(0, 6).setText('')
+
+
+    def update_deflector_pressure_in_main_table(self, item) -> None:
+        if item.row() == 8 and item.column() == 0:
+            print('изменение')
+            deflector_pressure = item.text()
+            print('давление', deflector_pressure, self.activate_deflector.isChecked())
+            if self.activate_deflector.isChecked() and deflector_pressure:
+                self.main_table.item(0, 6).setText(deflector_pressure)
+                self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
+            else:
+                self.main_table.item(0, 6).setText('')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # def set_deflector_pressure_in_main_table(self, state) -> None:
+    #     if state == 2:
+    #         deflector_pressure = self.deflector.item(8, 0).text()
+    #         if deflector_pressure and self.activate_deflector.isChecked():
+    #             self.main_table.item(0, 6).setText(deflector_pressure)
+    #         else:
+    #             self.main_table.item(0, 6).setText('')
+
+
+
+
+        # if row == 8 and column == 0:
+        #     deflector_pressure = self.deflector.item(8, 0).text()
+        #     if deflector_pressure and self.activate_deflector.isChecked():
+        #         self.main_table.item(0, 6).setText(deflector_pressure)
+        #     else:
+        #         self.main_table.item(0, 6).setText('')
+
 
 
 
