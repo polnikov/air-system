@@ -10,5 +10,6 @@
 - pyinstaller 5.9.0
 
 ### **Interface**
-![Project Diagram](/docs/img/main_tab.jpg)
+![Main tab](/docs/img/main_tab.jpg)
 
+![Second tab](/docs/img/second_tab.jpg)
