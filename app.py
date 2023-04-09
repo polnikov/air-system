@@ -240,7 +240,6 @@ class MainWindow(QMainWindow):
         self.delete_row_button.clicked.connect(self.update_full_air_flow_in_deflector_after_delete_row)
         self.delete_row_button.clicked.connect(self.update_air_flow_column_in_main_table_after_delete_row)
         self.delete_row_button.clicked.connect(self.set_floor_number_in_main_table)
-        # self.delete_row_button.clicked.connect(self._set_deflector_pressure_in_main_table)
 
         _widget.setLayout(_layout)
         return _widget
@@ -1320,99 +1319,6 @@ class MainWindow(QMainWindow):
                 self.sputnik_table.item(4, 13).setBackground(QColor(255, 255, 255))
 
 
-    def calculate_available_pressure(self, row=False, column=False) -> None:
-        sender = self.sender()
-        if isinstance(sender, QCheckBox):
-            if row == 2:
-                deflector_pressure = self.main_table.item(0, 6)
-                deflector_is_checked = self.activate_deflector.isChecked()
-                if deflector_pressure and deflector_is_checked and deflector_pressure.text() != '':
-                    deflector_pressure = float(deflector_pressure.text())
-                    num_rows = self.main_table.rowCount()
-                    for row in range(num_rows):
-                        gravi_pressure = self.main_table.item(row, 5)
-                        if gravi_pressure and gravi_pressure.text() != '':
-                            gravi_pressure = float(gravi_pressure.text())
-                            result = gravi_pressure + deflector_pressure
-                            result = "{:.2f}".format(round(result, 2))
-                            self.main_table.setItem(row, 7, QTableWidgetItem())
-                            self.main_table.item(row, 7).setText(result)
-                            self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                elif deflector_is_checked:
-                    num_rows = self.main_table.rowCount()
-                    for row in range(num_rows):
-                        gravi_pressure = self.main_table.item(row, 5)
-                        if gravi_pressure and gravi_pressure.text() != '':
-                            result = gravi_pressure.text()
-                            self.main_table.setItem(row, 7, QTableWidgetItem())
-                            self.main_table.item(row, 7).setText(result)
-                            self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    num_rows = self.main_table.rowCount()
-                    for row in range(num_rows):
-                        self.main_table.setItem(row, 7, QTableWidgetItem())
-                        self.main_table.item(row, 7).setText('')
-            else:
-                num_rows = self.main_table.rowCount()
-                for row in range(num_rows):
-                    gravi_pressure = self.main_table.item(row, 5)
-                    if gravi_pressure and gravi_pressure.text() != '':
-                        result = gravi_pressure.text()
-                        self.main_table.setItem(row, 7, QTableWidgetItem())
-                        self.main_table.item(row, 7).setText(result)
-                        self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        elif isinstance(sender, QTableWidget):
-            if (sender.objectName() == 'main' and column == 5) or (sender.objectName() == 'deflector' and column == 0):
-                deflector_pressure = self.main_table.item(0, 6)
-                gravi_pressure = self.main_table.item(row, 5)
-                deflector_is_checked = self.activate_deflector.isChecked()
-                if all([gravi_pressure, deflector_pressure, deflector_is_checked]) and all([deflector_pressure.text() != '', gravi_pressure.text() != '']):
-                    gravi_pressure = float(gravi_pressure.text())
-                    deflector_pressure = float(deflector_pressure.text())
-                    result = gravi_pressure + deflector_pressure
-                    result = "{:.2f}".format(round(result, 2))
-                    self.main_table.setItem(row, 7, QTableWidgetItem())
-                    self.main_table.item(row, 7).setText(result)
-                    self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    self.main_table.setItem(row, 7, QTableWidgetItem())
-                    self.main_table.item(row, 7).setText('')
-
-
-
-    # def calculate_available_pressure_by_checkbox(self, state) -> None:
-    #     print('checkbox - |')
-    #     if state == 2:
-    #         gravi_pressure = self.main_table.item(row, column)
-    #         deflector_pressure = self.main_table.item(0, 6)
-
-    #         if all([gravi_pressure, deflector_pressure, deflector_is_checked]) and all([deflector_pressure.text() != '', gravi_pressure.text() != '']):
-    #             print('3')
-    #             gravi_pressure = float(gravi_pressure.text())
-    #             deflector_pressure = float(deflector_pressure.text())
-    #             result = gravi_pressure + deflector_pressure
-    #             print('---', gravi_pressure, deflector_pressure, result)
-    #             result = "{:.2f}".format(round(result, 2))
-    #             self.main_table.setItem(row, 7, QTableWidgetItem())
-    #             self.main_table.item(row, 7).setText(result)
-    #             self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    #         elif gravi_pressure and gravi_pressure.text() != '':
-    #             print('2')
-    #             result = gravi_pressure.text()
-    #             self.main_table.setItem(row, 7, QTableWidgetItem())
-    #             self.main_table.item(row, 7).setText(result)
-    #             self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    #         else:
-    #             print('1')
-    #             self.main_table.setItem(row, 7, QTableWidgetItem())
-    #             self.main_table.item(row, 7).setText('')
-
-
-
-
-
-
     def set_floor_number_in_main_table(self) -> None:
         num_rows = self.main_table.rowCount()
         for row in range(num_rows):
@@ -1654,6 +1560,7 @@ class MainWindow(QMainWindow):
         self.deflector.cellChanged.connect(self.calculate_pressure_relation)
         self.deflector.cellChanged.connect(self.calculate_deflector_pressure)
         self.deflector.cellChanged.connect(self.activate_deflector_checkbox)
+        self.deflector.cellChanged.connect(self.calculate_available_pressure)
 
         self.deflector.cellChanged.connect(self.set_deflector_pressure_in_main_table)
 
@@ -1863,7 +1770,89 @@ class MainWindow(QMainWindow):
                 self.main_table.item(0, 6).setText('')
 
 
+    def calculate_available_pressure(self, row=False, column=False) -> None:
+        sender = self.sender()
+        name = sender.objectName()
 
+        if isinstance(sender, QTableWidget):
+            match name:
+                case 'deflector':
+                    deflector_is_checked = self.activate_deflector.isChecked()
+                    if deflector_is_checked:
+                        num_rows = self.main_table.rowCount()
+                        for row in range(num_rows):
+                            deflector_pressure = self.main_table.item(0, 6).text()
+                            gravi_pressure = self.main_table.item(row, 5)
+                            if all([deflector_pressure, gravi_pressure]) and gravi_pressure.text() != '':
+                                deflector_pressure = float(deflector_pressure)
+                                gravi_pressure = float(gravi_pressure.text())
+                                result = gravi_pressure + deflector_pressure
+                                result = "{:.2f}".format(round(result, 2))
+                                self.main_table.setItem(row, 7, QTableWidgetItem())
+                                self.main_table.item(row, 7).setText(result)
+                                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            else:
+                                self.main_table.setItem(row, 7, QTableWidgetItem())
+                                self.main_table.item(row, 7).setText('')
+                    else:
+                        num_rows = self.main_table.rowCount()
+                        for row in range(num_rows):
+                            gravi_pressure = self.main_table.item(row, 5)
+                            if gravi_pressure and gravi_pressure.text() != '':
+                                result = gravi_pressure.text()
+                                self.main_table.setItem(row, 7, QTableWidgetItem())
+                                self.main_table.item(row, 7).setText(result)
+                                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            else:
+                                self.main_table.setItem(row, 7, QTableWidgetItem())
+                                self.main_table.item(row, 7).setText('')
+                case 'main':
+                    if column == 5:
+                        deflector_is_checked = self.activate_deflector.isChecked()
+                        if deflector_is_checked:
+                            deflector_pressure = self.main_table.item(0, 6).text()
+                            gravi_pressure = self.main_table.item(row, 5)
+                            if all([deflector_pressure, gravi_pressure]) and gravi_pressure.text() != '':
+                                deflector_pressure = float(deflector_pressure)
+                                gravi_pressure = float(gravi_pressure.text())
+                                result = gravi_pressure + deflector_pressure
+                                result = "{:.2f}".format(round(result, 2))
+                                self.main_table.setItem(row, 7, QTableWidgetItem())
+                                self.main_table.item(row, 7).setText(result)
+                                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            else:
+                                self.main_table.setItem(row, 7, QTableWidgetItem())
+                                self.main_table.item(row, 7).setText('')
+        elif isinstance(sender, QCheckBox):
+            if row == 2:
+                num_rows = self.main_table.rowCount()
+                for row in range(num_rows):
+                    deflector_pressure = self.main_table.item(0, 6).text()
+                    gravi_pressure = self.main_table.item(row, 5)
+                    if all([deflector_pressure, gravi_pressure]) and gravi_pressure.text() != '':
+                        deflector_pressure = float(deflector_pressure)
+                        gravi_pressure = float(gravi_pressure.text())
+                        result = gravi_pressure + deflector_pressure
+                        result = "{:.2f}".format(round(result, 2))
+                        self.main_table.setItem(row, 7, QTableWidgetItem())
+                        self.main_table.item(row, 7).setText(result)
+                        self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    else:
+                        self.main_table.setItem(row, 7, QTableWidgetItem())
+                        self.main_table.item(row, 7).setText('')
+            else:
+                num_rows = self.main_table.rowCount()
+                for row in range(num_rows):
+                    gravi_pressure = self.main_table.item(row, 5)
+                    if gravi_pressure and gravi_pressure.text() != '':
+                        result = gravi_pressure.text()
+                        self.main_table.setItem(row, 7, QTableWidgetItem())
+                        self.main_table.item(row, 7).setText(result)
+                        self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    else:
+                        self.main_table.setItem(row, 7, QTableWidgetItem())
+                        self.main_table.item(row, 7).setText('')
+                    
 
 
 
