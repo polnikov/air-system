@@ -20,7 +20,6 @@ jobs:
     - name: Package Application
       uses: JackMcKew/pyinstaller-action-windows@main
       with:
-        path: \
         retention-days: 15
 
     - uses: actions/upload-artifact@v3
