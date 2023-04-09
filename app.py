@@ -1708,22 +1708,6 @@ class MainWindow(QMainWindow):
                 self.deflector.item(8, 0).setBackground(QColor(255, 255, 255))
 
 
-    # def set_deflector_pressure_in_main_table_by_radiobutton_1(self, checked) -> None:
-    #     if checked:
-    #         self.radio_button2.setChecked(False)
-    #         if self.activate_deflector.isChecked():
-    #             self._join_deflector_column_cells_in_main_table()
-    #             self._set_deflector_pressure_in_main_table()
-
-
-    # def set_deflector_pressure_in_main_table_by_radiobutton_2(self, checked) -> None:
-    #     if checked:
-    #         self.radio_button1.setChecked(False)
-    #         if self.activate_deflector.isChecked():
-    #             self._join_deflector_column_cells_in_main_table()
-    #             self._set_deflector_pressure_in_main_table()
-
-
     def _join_deflector_column_cells_in_main_table(self) -> None:
         num_rows = self.main_table.rowCount()
         self.main_table.setSpan(0, 6, num_rows, 1)
