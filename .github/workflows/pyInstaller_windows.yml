@@ -21,6 +21,7 @@ jobs:
       uses: JackMcKew/pyinstaller-action-windows@main
       with:
         spec: app.spec
+        path: .
 
     - uses: actions/upload-artifact@v3
       with:
