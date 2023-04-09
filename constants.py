@@ -24,8 +24,8 @@ class CONSTANTS:
 
     class BUTTONS:
         TITLE = 'Действия'
-        DELETE_BUTTON_TITLE = 'Удалить\nстроку'
-        ADD_BUTTON_TITLE = 'Добавить\nстроку'
+        DELETE_BUTTON_TITLE = 'Удалить\nэтаж'
+        ADD_BUTTON_TITLE = 'Добавить\nэтаж'
         LAST_FLOOR_BUTTON_TITLE = 'Добавить\nпоследний этаж'
 
         DELETE_BUTTON_TOOLTIP = 'Удалить строку основного расчёта'
