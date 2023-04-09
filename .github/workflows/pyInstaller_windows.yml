@@ -21,8 +21,9 @@ jobs:
       uses: JackMcKew/pyinstaller-action-windows@main
       with:
         path: \
+        retention-days: 15
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: air-system
-        path: /packages
+        path: packages/
