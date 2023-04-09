@@ -42,7 +42,7 @@ except ImportError:
 
 
 
-from PyQt6.QtGui import QFontDatabase, QFont
+from PyQt6.QtGui import QFont
 
 
 class MainWindow(QMainWindow):
@@ -194,17 +194,11 @@ class MainWindow(QMainWindow):
 
         label = QLabel('Добавить дефлектор')
         self.activate_deflector = QCheckBox()
-        # self.activate_deflector.setDisabled(True)
+        self.activate_deflector.setDisabled(True)
         self.activate_deflector.setChecked(False)
         self.activate_deflector.stateChanged.connect(self.show_deflector_column_in_main_table)
         self.activate_deflector.stateChanged.connect(self.set_deflector_pressure_in_main_table)
-        # self.activate_deflector.stateChanged.connect(self.set_deflector_pressure_in_main_table)
-
-
-
-
-
-
+        self.activate_deflector.stateChanged.connect(self.calculate_available_pressure)
 
         _layout.addWidget(label)
         _layout.addWidget(self.activate_deflector)
@@ -231,6 +225,7 @@ class MainWindow(QMainWindow):
         _layout.addWidget(self.add_row_button)
         self.add_row_button.clicked.connect(self.add_row)
         self.add_row_button.clicked.connect(self.set_floor_number_in_main_table)
+        self.add_row_button.clicked.connect(self._join_deflector_column_cells_in_main_table)
         # self.add_row_button.clicked.connect(self._set_deflector_pressure_in_main_table)
 
         self.delete_row_button = QPushButton()
@@ -357,9 +352,6 @@ class MainWindow(QMainWindow):
         self.radio_button2.clicked.connect(self.calculate_branch_pressure_by_radiobutton_2)
         self.radio_button1.clicked.connect(self.calculate_full_pressure_by_radiobutton_1)
         self.radio_button2.clicked.connect(self.calculate_full_pressure_by_radiobutton_2)
-
-        # self.radio_button1.clicked.connect(self.set_deflector_pressure_in_main_table_by_radiobutton_1)
-        # self.radio_button2.clicked.connect(self.set_deflector_pressure_in_main_table_by_radiobutton_2)
 
         self.sputnik_table.cellChanged.connect(self.set_sputnik_airflow_in_main_table)
         self.sputnik_table.cellChanged.connect(self.set_deflector_pressure_in_main_table)
@@ -657,11 +649,9 @@ class MainWindow(QMainWindow):
             pressure_loss = 10 * pow(current_klapan_flow / klapan_flow, 2)
             pressure_loss = "{:.2f}".format(round(pressure_loss, 2))
             self.sputnik_table.item(0, 13).setText(pressure_loss)
-            self.sputnik_table.item(0, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.sputnik_table.item(0, 13).setBackground(QColor(153, 255, 255))
         else:
             self.sputnik_table.item(0, 13).setText('')
-            self.sputnik_table.item(0, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.sputnik_table.item(0, 13).setBackground(QColor(255, 255, 255))
 
 
@@ -839,7 +829,6 @@ class MainWindow(QMainWindow):
                                 resistivity = (lam / diameter) * dynamic
                                 resistivity = "{:.4f}".format(round(resistivity, 4))
                                 self.sputnik_table.item(row, 7).setText(resistivity)
-                                self.sputnik_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                             except ZeroDivisionError:
                                 self.sputnik_table.item(row, 7).setText('')
                         else:
@@ -897,7 +886,6 @@ class MainWindow(QMainWindow):
                     resistivity = (lam / diameter) * dynamic
                     resistivity = "{:.4f}".format(round(resistivity, 4))
                     self.sputnik_table.item(row, 7).setText(resistivity)
-                    self.sputnik_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
                     self.sputnik_table.item(row, 7).setText('')
 
@@ -1033,13 +1021,11 @@ class MainWindow(QMainWindow):
                         m = interpolator((b, a))
                         m = "{:.3f}".format(around(m, 3))
                         self.sputnik_table.item(row, 8).setText(m)
-                        self.sputnik_table.item(row, 8).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     elif a and 100 <= int(a) <= 1_500:
                         a = int(a)
                         m = interpolator((a, a))
                         m = "{:.3f}".format(around(m, 3))
                         self.sputnik_table.item(row, 8).setText(m)
-                        self.sputnik_table.item(row, 8).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     else:
                         self.sputnik_table.item(row, 8).setText('')
             case CONSTANTS.MAIN_TABLE.NAME:
@@ -1079,7 +1065,6 @@ class MainWindow(QMainWindow):
                         m = float(m)
                         result = "{:.4f}".format(round(l * r * m, 4))
                         self.sputnik_table.item(row, 9).setText(result)
-                        self.sputnik_table.item(row, 9).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     else:
                         self.sputnik_table.item(row, 9).setText('')
             case CONSTANTS.MAIN_TABLE.NAME:
@@ -1109,7 +1094,6 @@ class MainWindow(QMainWindow):
                 kms = float(kms)
                 result = "{:.2f}".format(round(dynamic * kms, 2))
                 self.sputnik_table.item(row, 12).setText(result)
-                self.sputnik_table.item(row, 12).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 self.sputnik_table.item(row, 12).setText('')
 
@@ -1123,7 +1107,6 @@ class MainWindow(QMainWindow):
                 local_pressure_loss = float(local_pressure_loss)
                 result = "{:.2f}".format(round(linear_pressure_loss + local_pressure_loss, 2))
                 self.sputnik_table.item(row, 13).setText(result)
-                self.sputnik_table.item(row, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 self.sputnik_table.item(row, 13).setText('')
 
@@ -1321,11 +1304,9 @@ class MainWindow(QMainWindow):
                 one_side_pressure = float(one_side_pressure)
                 first_result = "{:.2f}".format(round((klapan_pressure + one_side_pressure), 2))
                 self.sputnik_table.item(2, 13).setText(first_result)
-                self.sputnik_table.item(2, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.sputnik_table.item(2, 13).setBackground(QColor(153, 255, 255))
             else:
                 self.sputnik_table.item(2, 13).setText('')
-                self.sputnik_table.item(2, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.sputnik_table.item(2, 13).setBackground(QColor(255, 255, 255))
 
             if all([klapan_pressure, two_side_pressure]):
@@ -1333,25 +1314,103 @@ class MainWindow(QMainWindow):
                 two_side_pressure = float(two_side_pressure)
                 second_result = "{:.2f}".format(round((klapan_pressure + two_side_pressure), 2))
                 self.sputnik_table.item(4, 13).setText(second_result)
-                self.sputnik_table.item(4, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.sputnik_table.item(4, 13).setBackground(QColor(153, 255, 255))
             else:
                 self.sputnik_table.item(4, 13).setText('')
-                self.sputnik_table.item(4, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.sputnik_table.item(4, 13).setBackground(QColor(255, 255, 255))
 
 
-    def calculate_available_pressure(self, row, column) -> None:
-        if column == 5:
-            num_rows = self.main_table.rowCount()
-            gravi_pressure = self.main_table.item(row, 5)
-            if gravi_pressure and gravi_pressure.text() != '' and row != num_rows:
-                self.main_table.setItem(row, 7, QTableWidgetItem())
-                self.main_table.item(row, 7).setText(gravi_pressure.text())
-                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    def calculate_available_pressure(self, row=False, column=False) -> None:
+        sender = self.sender()
+        if isinstance(sender, QCheckBox):
+            if row == 2:
+                deflector_pressure = self.main_table.item(0, 6)
+                deflector_is_checked = self.activate_deflector.isChecked()
+                if deflector_pressure and deflector_is_checked and deflector_pressure.text() != '':
+                    deflector_pressure = float(deflector_pressure.text())
+                    num_rows = self.main_table.rowCount()
+                    for row in range(num_rows):
+                        gravi_pressure = self.main_table.item(row, 5)
+                        if gravi_pressure and gravi_pressure.text() != '':
+                            gravi_pressure = float(gravi_pressure.text())
+                            result = gravi_pressure + deflector_pressure
+                            result = "{:.2f}".format(round(result, 2))
+                            self.main_table.setItem(row, 7, QTableWidgetItem())
+                            self.main_table.item(row, 7).setText(result)
+                            self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                elif deflector_is_checked:
+                    num_rows = self.main_table.rowCount()
+                    for row in range(num_rows):
+                        gravi_pressure = self.main_table.item(row, 5)
+                        if gravi_pressure and gravi_pressure.text() != '':
+                            result = gravi_pressure.text()
+                            self.main_table.setItem(row, 7, QTableWidgetItem())
+                            self.main_table.item(row, 7).setText(result)
+                            self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                else:
+                    num_rows = self.main_table.rowCount()
+                    for row in range(num_rows):
+                        self.main_table.setItem(row, 7, QTableWidgetItem())
+                        self.main_table.item(row, 7).setText('')
             else:
-                self.main_table.setItem(row, 7, QTableWidgetItem())
-                self.main_table.item(row, 7).setText('')
+                num_rows = self.main_table.rowCount()
+                for row in range(num_rows):
+                    gravi_pressure = self.main_table.item(row, 5)
+                    if gravi_pressure and gravi_pressure.text() != '':
+                        result = gravi_pressure.text()
+                        self.main_table.setItem(row, 7, QTableWidgetItem())
+                        self.main_table.item(row, 7).setText(result)
+                        self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        elif isinstance(sender, QTableWidget):
+            if (sender.objectName() == 'main' and column == 5) or (sender.objectName() == 'deflector' and column == 0):
+                deflector_pressure = self.main_table.item(0, 6)
+                gravi_pressure = self.main_table.item(row, 5)
+                deflector_is_checked = self.activate_deflector.isChecked()
+                if all([gravi_pressure, deflector_pressure, deflector_is_checked]) and all([deflector_pressure.text() != '', gravi_pressure.text() != '']):
+                    gravi_pressure = float(gravi_pressure.text())
+                    deflector_pressure = float(deflector_pressure.text())
+                    result = gravi_pressure + deflector_pressure
+                    result = "{:.2f}".format(round(result, 2))
+                    self.main_table.setItem(row, 7, QTableWidgetItem())
+                    self.main_table.item(row, 7).setText(result)
+                    self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                else:
+                    self.main_table.setItem(row, 7, QTableWidgetItem())
+                    self.main_table.item(row, 7).setText('')
+
+
+
+    # def calculate_available_pressure_by_checkbox(self, state) -> None:
+    #     print('checkbox - |')
+    #     if state == 2:
+    #         gravi_pressure = self.main_table.item(row, column)
+    #         deflector_pressure = self.main_table.item(0, 6)
+
+    #         if all([gravi_pressure, deflector_pressure, deflector_is_checked]) and all([deflector_pressure.text() != '', gravi_pressure.text() != '']):
+    #             print('3')
+    #             gravi_pressure = float(gravi_pressure.text())
+    #             deflector_pressure = float(deflector_pressure.text())
+    #             result = gravi_pressure + deflector_pressure
+    #             print('---', gravi_pressure, deflector_pressure, result)
+    #             result = "{:.2f}".format(round(result, 2))
+    #             self.main_table.setItem(row, 7, QTableWidgetItem())
+    #             self.main_table.item(row, 7).setText(result)
+    #             self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    #         elif gravi_pressure and gravi_pressure.text() != '':
+    #             print('2')
+    #             result = gravi_pressure.text()
+    #             self.main_table.setItem(row, 7, QTableWidgetItem())
+    #             self.main_table.item(row, 7).setText(result)
+    #             self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    #         else:
+    #             print('1')
+    #             self.main_table.setItem(row, 7, QTableWidgetItem())
+    #             self.main_table.item(row, 7).setText('')
+
+
+
+
 
 
     def set_floor_number_in_main_table(self) -> None:
@@ -1582,7 +1641,6 @@ class MainWindow(QMainWindow):
         for row in range(num_rows):
             self.deflector.setItem(row, 0, QTableWidgetItem())
             self.deflector.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            # self.deflector.setRowHeight(row, 30)
             if row == 0:
                 self.deflector.item(row, 0).setBackground(QColor(229, 255, 204))
             else:
@@ -1595,6 +1653,7 @@ class MainWindow(QMainWindow):
         self.deflector.cellChanged.connect(self.calculate_velocity_relation)
         self.deflector.cellChanged.connect(self.calculate_pressure_relation)
         self.deflector.cellChanged.connect(self.calculate_deflector_pressure)
+        self.deflector.cellChanged.connect(self.activate_deflector_checkbox)
 
         self.deflector.cellChanged.connect(self.set_deflector_pressure_in_main_table)
 
@@ -1763,34 +1822,11 @@ class MainWindow(QMainWindow):
         self.main_table.setSpan(0, 6, num_rows, 1)
 
 
-    # def set_deflector_pressure_in_main_table(self, row, column) -> None:
-    #     table = self.sender().objectName()
-    #     match table:
-    #         case 'deflector':
-    #             if row == 8 and column == 0:
-    #                 self._set_deflector_pressure_in_main_table()
-    #         case 'sputnik':
-    #             if (row, column) in ((1, 1), (3, 1)):
-    #                 self._set_deflector_pressure_in_main_table()
-
-
-    # def _set_deflector_pressure_in_main_table(self) -> None:
-    #     self._join_deflector_column_cells_in_main_table()
-    #     deflector_pressure = self.deflector.item(8, 0).text()
-    #     if deflector_pressure != '':
-    #         self.main_table.item(0, 6).setText(deflector_pressure)
-    #         self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
-    #     else:
-    #         self.main_table.item(0, 6).setText('')
-
-
-    # def activate_deflector_checkbox(self, row, column) -> None:
-    #     if row == 8 and column == 0:
-    #         deflector_pressure = self.deflector.item(8, 0).text()
-    #         if deflector_pressure:
-    #             self.activate_deflector.setDisabled(False)
-    #         else:
-    #             self.activate_deflector.setDisabled(True)
+    def activate_deflector_checkbox(self, row, column) -> None:
+        if row == 8 and column == 0:
+            deflector_pressure = self.deflector.item(8, 0).text()
+            if deflector_pressure:
+                self.activate_deflector.setDisabled(False)
 
 
     def show_deflector_column_in_main_table(self, state) -> None:
@@ -1801,20 +1837,25 @@ class MainWindow(QMainWindow):
             self.main_table.setColumnHidden(6, True)
 
 
-    def set_deflector_pressure_in_main_table(self, state) -> None:
+    def set_deflector_pressure_in_main_table(self, row=False, column=False) -> None:
+        sender = self.sender()
         deflector_pressure = self.deflector.item(8, 0).text()
-        if state == 2 and deflector_pressure:
-            self.main_table.item(0, 6).setText(deflector_pressure)
-            self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
+
+        if isinstance(sender, QCheckBox):
+            if deflector_pressure and row == 2:
+                self.main_table.item(0, 6).setText(deflector_pressure)
+                self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
+        elif isinstance(sender, QTableWidget):
+            if deflector_pressure and row == 8 and column == 0:
+                self.main_table.item(0, 6).setText(deflector_pressure)
+                self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
         else:
             self.main_table.item(0, 6).setText('')
 
 
     def update_deflector_pressure_in_main_table(self, item) -> None:
         if item.row() == 8 and item.column() == 0:
-            print('изменение')
             deflector_pressure = item.text()
-            print('давление', deflector_pressure, self.activate_deflector.isChecked())
             if self.activate_deflector.isChecked() and deflector_pressure:
                 self.main_table.item(0, 6).setText(deflector_pressure)
                 self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
@@ -1833,24 +1874,6 @@ class MainWindow(QMainWindow):
 
 
 
-
-    # def set_deflector_pressure_in_main_table(self, state) -> None:
-    #     if state == 2:
-    #         deflector_pressure = self.deflector.item(8, 0).text()
-    #         if deflector_pressure and self.activate_deflector.isChecked():
-    #             self.main_table.item(0, 6).setText(deflector_pressure)
-    #         else:
-    #             self.main_table.item(0, 6).setText('')
-
-
-
-
-        # if row == 8 and column == 0:
-        #     deflector_pressure = self.deflector.item(8, 0).text()
-        #     if deflector_pressure and self.activate_deflector.isChecked():
-        #         self.main_table.item(0, 6).setText(deflector_pressure)
-        #     else:
-        #         self.main_table.item(0, 6).setText('')
 
 
 
