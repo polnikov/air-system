@@ -1,8 +1,4 @@
 name: Package Application with Pyinstaller
-description: 'GitHub Action to package python code with PyInstaller for Windows'
-branding:
-  icon: 'box'
-  color: 'blue'
 
 on:
   push:
