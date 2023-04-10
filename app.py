@@ -129,7 +129,7 @@ class MainWindow(QMainWindow):
         surface_item = self.init_data_layout.itemAtPosition(1, 1)
         self.surface_widget = surface_item.widget()
         self.surface_widget.setObjectName('surface')
-        surface_regex = QRegularExpression("^(?:[1-9]\d?|100)(?:\.\d{1,2})?$")
+        surface_regex = QRegularExpression("^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$")
         surface_validator = QRegularExpressionValidator(surface_regex)
         self.surface_widget.setValidator(surface_validator)
         self.surface_widget.textChanged.connect(self.calculate_specific_pressure_loss)
