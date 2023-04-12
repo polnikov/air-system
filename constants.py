@@ -17,9 +17,56 @@ class CONSTANTS:
         )
         KLAPAN_LABEL = 'Выбор воздушного клапана'
         KLAPAN_ITEMS = {
-                'AB': 31,
-                'КИВ': 38,
-                'AirBox': 42,
+                'КИВ-125 (КПВ-125)': 36,
+                'Air-Box Comfort': 31,
+                'Air-Box Comfort с козырьком': 42,
+                'Air-Box Comfort S': 41,
+                'Air-Box Comfort Eco': 26,
+
+                'Norvind pro': 32,
+                'Norvind optima': 13,
+                'Norvind classic': 16,
+                'Norvind city': 30,
+                'Norvind lite': 26,
+
+                'Aereco EHT<sup>2</sup> 5-40': 40,
+                'Aereco EHT<sup>2</sup> 11-40': 40,
+                'Aereco EHT<sup>2</sup> 6-30': 30,
+                'Aereco EFT<sup>2</sup> 24': 24,
+                'Aereco EFT<sup>2</sup> 40': 40,
+                'Aereco EFTO<sup>2</sup> 40': 40,
+
+                'Aereco EHT 5-40': 40,
+                'Aereco EHT 11-40': 40,
+                'Aereco EHT 11-40': 40,
+                'Aereco EFT 40': 40,
+
+                'Aereco EHA² 5-35': 35,
+                'Aereco EHA² 11-35': 35,
+                'Aereco EHA² 17-35': 35,
+
+                'Aereco EMM² 5-35': 35,
+                'Aereco EMM² 11-35': 35,
+                'Aereco EMM² 24': 24,
+                'Aereco EMM² 35': 35,
+                'Aereco EMM² 5-35\nс проставкой': 45,
+                'Aereco EMM² 11-35\nс проставкой': 45,
+                'Aereco EMM² 24\nс проставкой': 36,
+                'Aereco EMM² 35\nс проставкой': 45,
+
+                'Aereco EAH² 5-35': 35,
+                'Aereco EAH² 11-35': 35,
+                'Aereco EAH² 24': 24,
+                'Aereco EAH² 35': 35,
+                'Aereco EAH² 5-35\nс проставкой': 50,
+                'Aereco EAH² 11-35\nс проставкой': 50,
+                'Aereco EAH² 24\nс проставкой': 38,
+                'Aereco EAH² 35\nс проставкой': 50,
+
+                'Aereco EMM 5-35': 35,
+                'Aereco EMM 11-35': 35,
+                'Aereco EMF 35': 35,
+
                 'Другой': '--',
             }
         KLAPAN_INPUT_LABEL_1 = 'Расход воздуха через клапан при перепаде\nдавления 10 Па'
@@ -144,6 +191,7 @@ class CONSTANTS:
     class DEFLECTOR:
         TITLE = 'Расчёт дефлектора'
         NAME = 'deflector'
+        TOOLTIP = 'Активируется, если расчет\nдефлектора выполнен'
         HEADER = [
             'Скорость ветра Vв [м/с]',
             'Рекомендуемая скорость в патрубке дефлектора Vд.рек [м/с]',
