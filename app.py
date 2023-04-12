@@ -553,13 +553,15 @@ class MainWindow(QMainWindow):
         if num_rows > 1:
             selected_row = self.main_table.currentRow()
             self.main_table.removeRow(selected_row)
-            self.main_table_box.setFixedHeight(self.main_table_box.height() - 30)
-
+            if num_rows < 15:
+                self.main_table_box.setFixedHeight(self.main_table_box.height() - 30)
+        
 
     def add_row(self) -> None:
-        num_rows = self.main_table.rowCount()
-        num_cols = self.main_table.columnCount()
-        self.main_table.insertRow(num_rows)
+        table = self.main_table
+        num_rows = table.rowCount()
+        num_cols = table.columnCount()
+        table.insertRow(num_rows)
 
         # вставка номера строки
         item = QTableWidgetItem(str(num_rows + 1))
@@ -569,30 +571,31 @@ class MainWindow(QMainWindow):
         # добавление виджета в расчетные ячейки
         for col in range(num_cols):
             if col not in green_cols or col not in (0, 3):
-                self.main_table.setItem(num_rows, col, QTableWidgetItem())
+                table.setItem(num_rows, col, QTableWidgetItem())
 
         # заливка зеленым ячеек для ввода
         for col in green_cols:
-            self.main_table.setItem(num_rows, col, QTableWidgetItem())
-            self.main_table.item(num_rows, col).setBackground(QColor(229, 255, 204))
-            self.main_table.item(num_rows, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            table.setItem(num_rows, col, QTableWidgetItem())
+            table.item(num_rows, col).setBackground(QColor(229, 255, 204))
+            table.item(num_rows, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # вставка высоты этажа
         if self.floor_height_widget.text() != '':
-            self.main_table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
-            self.main_table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
+            table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # установка расхода воздуха
-        init_flow = self.main_table.item(0, 3)
-        last_flow = self.main_table.item(num_rows-1, 3)
+        init_flow = table.item(0, 3)
+        last_flow = table.item(num_rows-1, 3)
         if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
             flow = int(init_flow.text()) + int(last_flow.text())
             flow = str(flow)
-            self.main_table.setItem(num_rows, 3, QTableWidgetItem())
-            self.main_table.item(num_rows, 3).setText(flow)
-            self.main_table.item(num_rows, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            table.setItem(num_rows, 3, QTableWidgetItem())
+            table.item(num_rows, 3).setText(flow)
+            table.item(num_rows, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.main_table.setItem(num_rows, 0, item)
+        table.setItem(num_rows, 0, item)
+
         if self.main_table_box.height() < 550:
             self.main_table_box.setFixedHeight(self.main_table_box.height() + 30)
 
