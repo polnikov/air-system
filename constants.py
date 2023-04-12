@@ -8,18 +8,18 @@ class CONSTANTS:
     class INIT_DATA:
         TITLE = 'Исходные данные'
         LINE_HEIGHT = 35
-        INPUT_WIDTH = 70
+        INPUT_WIDTH = 50
         LABELS = (
-            ('Расчетная температура внутреннего воздуха,\ntв', '°C'),
+            ('Расчетная температура внутреннего воздуха, tв', '°C'),
             ('Коэффициент эквивалентной шероховатости\nканала, Kэ', 'мм'),
             ('Высота типового этажа, hэ', 'м'),
             ('Высота шахты, Hш', 'м'),
         )
-        KLAPAN_LABEL = 'Выбор воздушного клапана'
+        KLAPAN_LABEL = 'Воздушный клапан'
         KLAPAN_ITEMS = {
                 'КИВ-125 (КПВ-125)': 36,
                 'Air-Box Comfort': 31,
-                'Air-Box Comfort с козырьком': 42,
+                'Air-Box Comfort\nс козырьком': 42,
                 'Air-Box Comfort S': 41,
                 'Air-Box Comfort Eco': 26,
 
@@ -29,12 +29,12 @@ class CONSTANTS:
                 'Norvind city': 30,
                 'Norvind lite': 26,
 
-                'Aereco EHT<sup>2</sup> 5-40': 40,
-                'Aereco EHT<sup>2</sup> 11-40': 40,
-                'Aereco EHT<sup>2</sup> 6-30': 30,
-                'Aereco EFT<sup>2</sup> 24': 24,
-                'Aereco EFT<sup>2</sup> 40': 40,
-                'Aereco EFTO<sup>2</sup> 40': 40,
+                'Aereco EHT² 5-40': 40,
+                'Aereco EHT² 11-40': 40,
+                'Aereco EHT² 6-30': 30,
+                'Aereco EFT² 24': 24,
+                'Aereco EFT² 40': 40,
+                'Aereco EFTO² 40': 40,
 
                 'Aereco EHT 5-40': 40,
                 'Aereco EHT 11-40': 40,
@@ -100,7 +100,7 @@ class CONSTANTS:
             'Сторона канала\na\n(большая)\n[мм]',
             'Сторона канала\nb\n(меньшая)\n[мм]',
             'v\n[м/с]',
-            'dэкв\n[м]',
+            'Dэкв\n[м]',
             'R\n[Па/м]',
             'm',
             'R∙l∙m\n[Па]',
@@ -122,12 +122,12 @@ class CONSTANTS:
         NAME = 'sputnik'
         HEADER = [
             'Участок',
-            'Проектный\nрасход\nчерез\nклапана\nL\n[м3/ч]',
+            'L\n[м3/ч]',
             'Длина\nканала\n[м]',
             'Сторона канала\na\n(большая)\n[мм]',
             'Сторона канала\nb\n(меньшая)\n[мм]',
             'v\n[м/с]',
-            'dэкв\n[м]',
+            'Dэкв\n[м]',
             'R\n[Па/м]',
             'm',
             'R∙l∙m\n[Па]',
@@ -139,6 +139,7 @@ class CONSTANTS:
         ]
         RADIO_TOOLTIP_1 = 'Расчёт одностороннего блока'
         RADIO_TOOLTIP_2 = 'Расчёт двухстороннего блока'
+        KLAPAN_FLOW_TOOLTIP = 'Проектный расход\nчерез клапана'
 
 
     class REFERENCE_DATA:
