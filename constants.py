@@ -32,7 +32,7 @@ class CONSTANTS:
         ADD_BUTTON_TITLE = 'Добавить\nэтаж'
         LAST_FLOOR_BUTTON_TITLE = 'Добавить\nпоследний этаж'
 
-        DELETE_BUTTON_TOOLTIP = 'Удалить строку основного расчёта'
+        DELETE_BUTTON_TOOLTIP = 'Удалить текущую строку основного расчёта'
         ADD_BUTTON_TOOLTIP = 'Добавить строку в конец основного расчёта'
 
 
