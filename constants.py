@@ -65,6 +65,11 @@ class CONSTANTS:
         ]
 
 
+    class LAST_FLOOR_TABLE:
+        TITLE = 'Последний этаж'
+        NAME = 'last'
+
+
     class SPUTNIK_TABLE:
         TITLE = 'Расчёт спутника'
         NAME = 'sputnik'
