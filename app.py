@@ -1485,7 +1485,7 @@ class MainWindow(QMainWindow):
 
     def _calculate_full_pressure_by_radiobutton(self, klapan_full_pressure) -> None:
         num_rows = self.main_table.rowCount()
-        for row in range(num_rows-1):
+        for row in range(num_rows):
             branch_pressure = self.main_table.item(row, 19)
 
             if klapan_full_pressure and branch_pressure and branch_pressure.text() != '':
