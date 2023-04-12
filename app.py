@@ -292,7 +292,7 @@ class MainWindow(QMainWindow):
                 )
                 if (row, col) not in editable:
                     _table.item(row, col).setFlags(Qt.ItemFlag.ItemIsEnabled)
-                else
+                else:
                     _table.item(row, col).setBackground(QColor(229, 255, 204))
 
         for row in range(num_rows):
