@@ -41,15 +41,12 @@ except ImportError:
     pass
 
 
-
-from PyQt6.QtGui import QFont
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(CONSTANTS.APP_TITLE)
         self.box_style = "QGroupBox::title {color: blue;}"
+        self.last_floor = False
 
         self.tab_widget = QTabWidget(self)
         self.setCentralWidget(self.tab_widget)
@@ -98,21 +95,21 @@ class MainWindow(QMainWindow):
         _box = QGroupBox(CONSTANTS.INIT_DATA.TITLE)
         style = self.box_style
         _box.setStyleSheet(style)
-        _box.setFixedWidth(490)
+        _box.setFixedWidth(445)
 
         self.init_data_layout = QGridLayout()
         self.init_data_layout.setVerticalSpacing(10)
         labels = CONSTANTS.INIT_DATA.LABELS
         for i in range(len(labels)):
             label_0 = QLabel(labels[i][0])
-            label_0.setFixedHeight(22)
+            label_0.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
             line_edit = QLineEdit()
             line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
             line_edit.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
-            line_edit.setFixedWidth(65)
-            line_edit.setFixedHeight(22)
+            line_edit.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
+            line_edit.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
             label_1 = QLabel(labels[i][1])
-            label_1.setFixedHeight(22)
+            label_1.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
             self.init_data_layout.addWidget(label_0, i, 0)
             self.init_data_layout.addWidget(line_edit, i, 1)
             self.init_data_layout.addWidget(label_1, i, 2)
@@ -153,21 +150,21 @@ class MainWindow(QMainWindow):
         klapan_label = QLabel(CONSTANTS.INIT_DATA.KLAPAN_LABEL)
         self.klapan_widget = QComboBox()
         self.klapan_widget.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
-        self.klapan_widget.setFixedHeight(22)
+        self.klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         self.klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
-        self.klapan_widget.setFixedWidth(65)
+        self.klapan_widget.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
 
         self.klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
-        self.klapan_air_flow_label = QLabel(f'{self.klapan_widget_value} м3/ч')
+        self.klapan_air_flow_label = QLabel(f'{self.klapan_widget_value} м<sup>3</sup>/ч')
 
         self.klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
         self.klapan_widget.currentTextChanged.connect(self.calculate_klapan_pressure_loss)
 
         klapan_input_label_1 = QLabel(CONSTANTS.INIT_DATA.KLAPAN_INPUT_LABEL_1)
         self.klapan_input = QLineEdit()
-        klapan_input_label_2 = QLabel('м3/ч')
-        self.klapan_input.setFixedWidth(65)
-        self.klapan_input.setFixedHeight(22)
+        klapan_input_label_2 = QLabel('м<sup>3</sup>/ч')
+        self.klapan_input.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
+        self.klapan_input.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         self.klapan_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
         klapan_input_regex = QRegularExpression("^(?:[1-9]|[1-9]\d|100)(?:)?$")
@@ -214,6 +211,7 @@ class MainWindow(QMainWindow):
         self.last_floor_row_button = QPushButton()
         self.last_floor_row_button.setText(CONSTANTS.BUTTONS.LAST_FLOOR_BUTTON_TITLE)
         _layout.addWidget(self.last_floor_row_button)
+        self.last_floor_row_button.clicked.connect(self.add_last_floor)
 
         self.add_row_button = QPushButton()
         self.add_row_button.setText(CONSTANTS.BUTTONS.ADD_BUTTON_TITLE)
@@ -249,7 +247,7 @@ class MainWindow(QMainWindow):
         _box = QGroupBox(CONSTANTS.SPUTNIK_TABLE.TITLE)
         style = self.box_style
         _box.setStyleSheet(style)
-        _box.setFixedHeight(247)
+        _box.setFixedHeight(298)
 
         _layout = QVBoxLayout()
 
@@ -288,7 +286,7 @@ class MainWindow(QMainWindow):
                     self.sputnik_table.item(row, col).setBackground(QColor(229, 255, 204))
 
         for row in range(num_rows):
-            self.sputnik_table.setRowHeight(row, 30)
+            self.sputnik_table.setRowHeight(row, 29)
             match row:
                 case 2 | 4:
                     self.sputnik_table.setSpan(row, 0, 1, 13)
@@ -304,7 +302,7 @@ class MainWindow(QMainWindow):
                 case 3 | 4:
                     self.sputnik_table.setColumnWidth(i, 110)
                 case _:
-                    self.sputnik_table.setColumnWidth(i, 70)
+                    self.sputnik_table.setColumnWidth(i, 72)
                     
             # if i in (1, 2, 3, 4):
             #     self.sputnik_table.item(1, i).setBackground(QColor(229, 255, 204))
@@ -494,48 +492,59 @@ class MainWindow(QMainWindow):
 
 
     def add_row(self) -> None:
-        num_rows = self.main_table.rowCount()
-        num_cols = self.main_table.columnCount()
-        self.main_table.insertRow(num_rows)
+        if not self.last_floor:
+            num_rows = self.main_table.rowCount()
+            num_cols = self.main_table.columnCount()
+            self.main_table.insertRow(num_rows)
 
-        # вставка номера строки
-        item = QTableWidgetItem(str(num_rows + 1))
-        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            # вставка номера строки
+            item = QTableWidgetItem(str(num_rows + 1))
+            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        green_cols = (1, 2, 10, 11)
-        # добавление виджета в расчетные ячейки
-        for col in range(num_cols):
-            if col not in green_cols or col not in (0, 3):
+            green_cols = (1, 2, 10, 11)
+            # добавление виджета в расчетные ячейки
+            for col in range(num_cols):
+                if col not in green_cols or col not in (0, 3):
+                    self.main_table.setItem(num_rows, col, QTableWidgetItem())
+
+            # заливка зеленым ячеек для ввода
+            for col in green_cols:
                 self.main_table.setItem(num_rows, col, QTableWidgetItem())
+                self.main_table.item(num_rows, col).setBackground(QColor(229, 255, 204))
+                self.main_table.item(num_rows, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # заливка зеленым ячеек для ввода
-        for col in green_cols:
-            self.main_table.setItem(num_rows, col, QTableWidgetItem())
-            self.main_table.item(num_rows, col).setBackground(QColor(229, 255, 204))
-            self.main_table.item(num_rows, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            # вставка высоты этажа
+            if self.floor_height_widget.text() != '':
+                self.main_table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
+                self.main_table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # вставка высоты этажа
-        if self.floor_height_widget.text() != '':
-            self.main_table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
-            self.main_table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            # установка расхода воздуха
+            init_flow = self.main_table.item(0, 3)
+            last_flow = self.main_table.item(num_rows-1, 3)
+            if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
+                flow = int(init_flow.text()) + int(last_flow.text())
+                flow = str(flow)
+                self.main_table.setItem(num_rows, 3, QTableWidgetItem())
+                self.main_table.item(num_rows, 3).setText(flow)
+                self.main_table.item(num_rows, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # установка расхода воздуха
-        init_flow = self.main_table.item(0, 3)
-        last_flow = self.main_table.item(num_rows-1, 3)
-        if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
-            flow = int(init_flow.text()) + int(last_flow.text())
-            flow = str(flow)
-            self.main_table.setItem(num_rows, 3, QTableWidgetItem())
-            self.main_table.item(num_rows, 3).setText(flow)
-            self.main_table.item(num_rows, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.main_table.setItem(num_rows, 0, item)
+            self.main_table.setItem(num_rows, 0, item)
         # self.set_row_columns_in_not_editable_mode(num_rows)
+        else:
+            pass
+
+
+    def add_last_floor(self) -> None:
+        num_rows = self.main_table.rowCount()
+        self.main_table.insertRow(num_rows)
+        self.main_table.setItem(num_rows, 0, QTableWidgetItem('Последний'))
+        self.main_table.item(num_rows, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.last_floor = True
 
 
     def set_klapan_air_flow_in_label(self) -> None:
         klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
-        self.klapan_air_flow_label.setText(f'{klapan_widget_value} м3/ч')
+        self.klapan_air_flow_label.setText(f'{klapan_widget_value} м<sup>3</sup>/ч')
         self.sputnik_table.item(0, 0).setText(self.klapan_widget.currentText())
 
 
@@ -1320,10 +1329,11 @@ class MainWindow(QMainWindow):
 
 
     def set_floor_number_in_main_table(self) -> None:
-        num_rows = self.main_table.rowCount()
-        for row in range(num_rows):
-            self.main_table.item(row, 0).setText(str(row+1))
-            self.main_table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        if not self.last_floor:
+            num_rows = self.main_table.rowCount()
+            for row in range(num_rows):
+                self.main_table.item(row, 0).setText(str(row+1))
+                self.main_table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
     # def set_channel_height_in_main_table(self) -> None:
@@ -1530,8 +1540,8 @@ class MainWindow(QMainWindow):
         _box = QGroupBox(CONSTANTS.DEFLECTOR.TITLE)
         style = self.box_style
         _box.setStyleSheet(style)
-        _box.setFixedHeight(308)
-        _box.setFixedWidth(500)
+        _box.setFixedHeight(316)
+        _box.setFixedWidth(540)
 
         _layout = QHBoxLayout()
 
@@ -1857,7 +1867,7 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     import sys
     app = QApplication(sys.argv)
-    app.setFont(QFont('Hack', 8))
+    app.setFont(QFont('Consolas', 10))
     window = MainWindow()
     window.setWindowIcon(QIcon(os.path.join(basedir, 'app.ico')))
     window.setIconSize(QSize(15, 15))
