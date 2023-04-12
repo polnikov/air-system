@@ -96,7 +96,7 @@ class MainWindow(QMainWindow):
         _box = QGroupBox(CONSTANTS.INIT_DATA.TITLE)
         style = self.box_style
         _box.setStyleSheet(style)
-        _box.setFixedWidth(445)
+        _box.setFixedWidth(450)
 
         self.init_data_layout = QGridLayout()
         _init_data = self.init_data_layout
@@ -105,6 +105,7 @@ class MainWindow(QMainWindow):
         for i in range(len(labels)):
             label_0 = QLabel(labels[i][0])
             label_0.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
+            label_0.setFixedWidth(320)
             line_edit = QLineEdit()
             line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
             line_edit.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
@@ -155,17 +156,18 @@ class MainWindow(QMainWindow):
         klapan_label = QLabel(CONSTANTS.INIT_DATA.KLAPAN_LABEL)
         self.klapan_widget = QComboBox()
         klapan_widget = self.klapan_widget
-        klapan_widget.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
+        klapan_widget.setStyleSheet('QComboBox { background-color: %s}' % QColor(229, 255, 204).name())
         klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
-        klapan_widget.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
-
+        klapan_widget.setFixedWidth(170)
         self.klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(klapan_widget.currentText())
         self.klapan_air_flow_label = QLabel(f'{self.klapan_widget_value} м<sup>3</sup>/ч')
-
         klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
         klapan_widget.currentTextChanged.connect(self.calculate_klapan_pressure_loss)
         klapan_widget.currentTextChanged.connect(self.activate_klapan_input)
+        klapan_layout = QHBoxLayout()
+        klapan_layout.addWidget(klapan_label)
+        klapan_layout.addWidget(klapan_widget)
 
         klapan_input_label_1 = QLabel(CONSTANTS.INIT_DATA.KLAPAN_INPUT_LABEL_1)
         self.klapan_input = QLineEdit()
@@ -181,10 +183,8 @@ class MainWindow(QMainWindow):
         klapan_input.setValidator(klapan_input_validator)
         klapan_input.setToolTip(CONSTANTS.INIT_DATA.KLAPAN_INPUT_TOOLTIP)
         klapan_input.textChanged.connect(self.calculate_klapan_pressure_loss)
-        
 
-        _init_data.addWidget(klapan_label, 4, 0)
-        _init_data.addWidget(self.klapan_widget, 4, 1, 1, 2)
+        _init_data.addLayout(klapan_layout, 4, 0, 1, 2)
         _init_data.addWidget(self.klapan_air_flow_label, 4, 2)
         _init_data.addWidget(klapan_input_label_1, 5, 0)
         _init_data.addWidget(self.klapan_input, 5, 1)
@@ -307,25 +307,24 @@ class MainWindow(QMainWindow):
                 case 1 | 3:
                     _table.setSpan(row, 14, 2, 1)
 
-        for i in range(num_cols):
-            match i:
+        for col in range(num_cols):
+            match col:
+                case 0:
+                    _table.setColumnWidth(col, 60)
+                case 1:
+                    _table.setColumnWidth(col, 80)
+                # case 14:
+                #     _table.setColumnWidth(col, 30)
                 case 3 | 4:
-                    _table.setColumnWidth(i, 110)
+                    _table.setColumnWidth(col, 110)
                 case _:
-                    _table.setColumnWidth(i, 72)
-                    
-            # if i in (1, 2, 3, 4):
-            #     self.sputnik_table.item(1, i).setBackground(QColor(229, 255, 204))
-            #     # self.sputnik_table.item(1, i).setFlags(~Qt.ItemFlag.NoItemFlags)
-            #     self.sputnik_table.item(3, i).setBackground(QColor(229, 255, 204))
-            #     # self.sputnik_table.item(3, i).setFlags(Qt.ItemFlag.NoItemFlags)
+                    _table.setColumnWidth(col, 72)
 
         # установка заливки для редактируемых столбцов
         _table.item(0, 1).setBackground(QColor(229, 255, 204))
 
-
         # заполняем таблицу
-        _table.item(0, 0).setText(self.klapan_widget.currentText())
+        _table.item(0, 1).setToolTip(CONSTANTS.SPUTNIK_TABLE.KLAPAN_FLOW_TOOLTIP)
         _table.item(1, 0).setText('1-2')
         _table.item(3, 0).setText('1*-2*')
 
@@ -350,6 +349,8 @@ class MainWindow(QMainWindow):
         # обработчики
         radio_button1.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_1)
         radio_button2.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_2)
+        radio_button1.clicked.connect(self.set_sputnik_dimensions_in_last_table_by_radiobutton_1)
+        radio_button2.clicked.connect(self.set_sputnik_dimensions_in_last_table_by_radiobutton_2)
 
         radio_button2.clicked.connect(self.uncheck_radio_button_1)
         radio_button1.clicked.connect(self.uncheck_radio_button_2)
@@ -363,6 +364,7 @@ class MainWindow(QMainWindow):
 
         _table.cellChanged.connect(self.set_sputnik_airflow_in_main_table)
         _table.cellChanged.connect(self.set_deflector_pressure_in_main_table)
+        _table.cellChanged.connect(self.set_sputnik_dimensions_in_last_table)
 
         _table.cellChanged.connect(self.calculate_klapan_pressure_loss)
         _table.cellChanged.connect(self.calculate_air_velocity)
@@ -483,29 +485,32 @@ class MainWindow(QMainWindow):
             _table.item(0, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # установка ширины столбцов
-        for i in range(num_cols):
-            match i:
+        for col in range(num_cols):
+            match col:
                 case 0:
-                    _table.setColumnWidth(i, 50)
+                    _table.setColumnWidth(col, 50)
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
-                    _table.setColumnWidth(i, 70)
+                    _table.setColumnWidth(col, 70)
                 case 4 | 5 | 6 | 7 | 8 | 9:
-                    _table.setColumnWidth(i, 60)
+                    _table.setColumnWidth(col, 60)
                 case 10 | 11:
-                    _table.setColumnWidth(i, 110)
+                    _table.setColumnWidth(col, 110)
 
             # установка заливки для редактируемых столбцов
-            if i in (1, 2, 10, 11):
-                _table.item(0, i).setBackground(QColor(229, 255, 204))
+            if col in (1, 2, 8, 9, 10, 11):
+                _table.item(0, col).setBackground(QColor(229, 255, 204))
 
-        # self.main_table.setSpan(0, 6, 0, 0)
         _table.setColumnHidden(6, True)
+        _table.item(0, 0).setText('-')
+        _table.item(0, 8).setText('0')
 
         # обработчики
+        # _table.cellChanged.connect(self.calculate_height)
 
         _layout.addWidget(_table)
         _box.setLayout(_layout)
         _box.setFixedHeight(68)
+        _box.setMinimumHeight(86)
         return _box
 
 
@@ -605,7 +610,7 @@ class MainWindow(QMainWindow):
     def set_klapan_air_flow_in_label(self, value) -> None:
         klapan_flow = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(value)
         self.klapan_air_flow_label.setText(f'{klapan_flow} м<sup>3</sup>/ч')
-        self.sputnik_table.item(0, 0).setText(value)
+        # self.sputnik_table.item(0, 0).setText(value)
 
 
     # def set_row_columns_in_not_editable_mode(self, row) -> None:
@@ -1229,8 +1234,11 @@ class MainWindow(QMainWindow):
             sputnik_flow = float(flow)
             sputnik_a, sputnik_b = int(sputnik_a), int(sputnik_b)
             num_rows = self.main_table.rowCount()
-            for row in range(0, num_rows-1):
-                floor_flow = self.main_table.item(row+1, 3)
+            for row in range(num_rows):
+                if row == num_rows-1:
+                    floor_flow = self.main_table.item(0, 3)
+                else:
+                    floor_flow = self.main_table.item(row+1, 3)
                 main_a = self.main_table.item(row, 10)
                 main_b = self.main_table.item(row, 11)
                 if not main_b or main_b.text() == '':
@@ -1269,7 +1277,7 @@ class MainWindow(QMainWindow):
                     self.main_table.item(row, 9).setText('')
         else:
             num_rows = self.main_table.rowCount()
-            for row in range(0, num_rows-1):
+            for row in range(0, num_rows):
                 self.main_table.setItem(row, 8, QTableWidgetItem())
                 self.main_table.setItem(row, 9, QTableWidgetItem())
                 self.main_table.item(row, 8).setText('')
@@ -1416,12 +1424,15 @@ class MainWindow(QMainWindow):
             # собираем все значения высоты этажей
             for row in range(num_rows):
                 all_values.append(self.main_table.item(row, 1).text())
+            all_values.append(self.last_floor_table.item(0, 1).text())
 
             # если значения по этажам не менялись - меняем на новое
             if len(set(all_values)) == 1:
                 for row in range(num_rows):
                     self.main_table.item(row, 1).setText("{:.2f}".format(float(base_floor_height)))
                     self.main_table.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.last_floor_table.item(0, 1).setText("{:.2f}".format(float(base_floor_height)))
+                self.last_floor_table.item(0, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 # определяем максимально встречающееся значение, т.е. ранее установленное значение которое не было изменено
                 current_height = max(set(all_values), key=all_values.count)
@@ -1430,9 +1441,13 @@ class MainWindow(QMainWindow):
                     if self.main_table.item(row, 1).text() == current_height:
                         self.main_table.item(row, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
                         self.main_table.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if self.last_floor_table.item(0, 1).text() == current_height:
+                    self.last_floor_table.item(0, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
+                    self.last_floor_table.item(0, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         else:
             for row in range(num_rows):
                 self.main_table.item(row, 1).setText('')
+            self.last_floor_table.item(0, 1).setText('')
 
 
     def calculate_height(self, row=False, column=False):
@@ -1445,7 +1460,6 @@ class MainWindow(QMainWindow):
                     if channel_height and base_floor_height:
                         self.main_table.item(0, 4).setText("{:.2f}".format(float(channel_height)))
                         self.main_table.item(0, 4).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
                         floor_height = self.main_table.item(row, 1)
                         previous_height = self.main_table.item(row-1, 4)
                         if all([floor_height, previous_height]) and all([floor_height.text() != '', previous_height.text() != '']):
@@ -1464,7 +1478,6 @@ class MainWindow(QMainWindow):
                 if channel_height:
                     self.main_table.item(0, 4).setText("{:.2f}".format(float(channel_height)))
                     self.main_table.item(0, 4).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
                     num_rows = self.main_table.rowCount()
                     self._fill_height_column_in_main_table(num_rows)
                 else:
@@ -1915,6 +1928,51 @@ class MainWindow(QMainWindow):
             self.klapan_input.setText('')
             self.klapan_input.setDisabled(True)
             self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
+
+
+    def set_sputnik_dimensions_in_last_table_by_radiobutton_1(self, checked) -> None:
+        if checked:
+            self.radio_button2.setChecked(False)
+            sputnik_a = self.sputnik_table.item(1, 3).text()
+            sputnik_b = self.sputnik_table.item(1, 4).text()
+            self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_a, sputnik_b)
+
+
+    def set_sputnik_dimensions_in_last_table_by_radiobutton_2(self, checked) -> None:
+        if checked:
+            self.radio_button1.setChecked(False)
+            sputnik_a = self.sputnik_table.item(3, 3).text()
+            sputnik_b = self.sputnik_table.item(3, 4).text()
+            self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_a, sputnik_b)
+
+
+    def _set_sputnik_dimensions_in_last_table_by_radiobutton(self, a, b) -> None:
+        if a:
+            self.last_floor_table.item(0, 10).setText(a)
+            self.last_floor_table.item(0, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        else:
+            self.last_floor_table.item(0, 10).setText('')
+
+        if b:
+            self.last_floor_table.item(0, 11).setText(b)
+            self.last_floor_table.item(0, 11).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        else:
+            self.last_floor_table.item(0, 11).setText('')
+
+
+    def set_sputnik_dimensions_in_last_table(self, row, column) -> None:
+        dimensions_cells = ((1, 3), (1, 4), (3, 3), (3, 4))
+        sputnik_1_a = self.sputnik_table.item(1, 3).text()
+        sputnik_1_b = self.sputnik_table.item(1, 4).text()
+        sputnik_2_a = self.sputnik_table.item(3, 3).text()
+        sputnik_2_b = self.sputnik_table.item(3, 4).text()
+
+        if (row, column) in dimensions_cells:
+            if self.radio_button1.isChecked():
+                self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_1_a, sputnik_1_b)
+            elif self.radio_button2.isChecked():
+                self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_2_a, sputnik_2_b)
+
 
 
 
