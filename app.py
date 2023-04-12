@@ -159,6 +159,7 @@ class MainWindow(QMainWindow):
 
         self.klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
         self.klapan_widget.currentTextChanged.connect(self.calculate_klapan_pressure_loss)
+        self.klapan_widget.currentTextChanged.connect(self.activate_klapan_input)
 
         klapan_input_label_1 = QLabel(CONSTANTS.INIT_DATA.KLAPAN_INPUT_LABEL_1)
         self.klapan_input = QLineEdit()
@@ -166,10 +167,12 @@ class MainWindow(QMainWindow):
         self.klapan_input.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
         self.klapan_input.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         self.klapan_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
+        self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
+        self.klapan_input.setDisabled(True)
         klapan_input_regex = QRegularExpression("^(?:[1-9]|[1-9]\d|100)(?:)?$")
         klapan_input_validator = QRegularExpressionValidator(klapan_input_regex)
         self.klapan_input.setValidator(klapan_input_validator)
+        self.klapan_input.setToolTip(CONSTANTS.INIT_DATA.KLAPAN_INPUT_TOOLTIP)
         self.klapan_input.textChanged.connect(self.calculate_klapan_pressure_loss)
         
 
@@ -542,10 +545,10 @@ class MainWindow(QMainWindow):
         self.last_floor = True
 
 
-    def set_klapan_air_flow_in_label(self) -> None:
-        klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
-        self.klapan_air_flow_label.setText(f'{klapan_widget_value} м<sup>3</sup>/ч')
-        self.sputnik_table.item(0, 0).setText(self.klapan_widget.currentText())
+    def set_klapan_air_flow_in_label(self, value) -> None:
+        klapan_flow = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(value)
+        self.klapan_air_flow_label.setText(f'{klapan_flow} м<sup>3</sup>/ч')
+        self.sputnik_table.item(0, 0).setText(value)
 
 
     # def set_row_columns_in_not_editable_mode(self, row) -> None:
@@ -646,7 +649,7 @@ class MainWindow(QMainWindow):
 
 
     def _calculate_klapan_pressure_loss(self, klapan_widget_value, hand_klapan_flow, current_klapan_flow) -> None:
-        if hand_klapan_flow:
+        if hand_klapan_flow or klapan_widget_value == '--':
             klapan_flow = hand_klapan_flow
         else:
             klapan_flow = klapan_widget_value
@@ -1846,7 +1849,17 @@ class MainWindow(QMainWindow):
                     else:
                         self.main_table.setItem(row, 7, QTableWidgetItem())
                         self.main_table.item(row, 7).setText('')
-                    
+
+
+    def activate_klapan_input(self, value) -> None:
+        if value == 'Другой':
+            self.klapan_input.setDisabled(False)
+            self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
+        else:
+            self.klapan_input.setText('')
+            self.klapan_input.setDisabled(True)
+            self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
+
 
 
 
