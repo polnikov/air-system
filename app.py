@@ -46,14 +46,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(CONSTANTS.APP_TITLE)
         self.box_style = "QGroupBox::title {color: blue;}"
-        self.last_floor = False
-
         self.tab_widget = QTabWidget(self)
         self.setCentralWidget(self.tab_widget)
-
         self.tab_widget.addTab(self.create_tab1_content(), CONSTANTS.TAB1_TITLE)
         self.tab_widget.addTab(self.create_tab2_content(), CONSTANTS.TAB2_TITLE)
-
         self.showMaximized()
 
 
@@ -61,20 +57,25 @@ class MainWindow(QMainWindow):
         _widget = QWidget()
         _layout = QVBoxLayout()
 
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(self.create_init_data_box())
-        hbox1.addWidget(self.create_sputnik_table_box())
+        _hbox1 = QHBoxLayout()
+        _hbox1.addWidget(self.create_init_data_box())
+        _hbox1.addWidget(self.create_sputnik_table_box())
 
-        hbox2 = QHBoxLayout()
-        hbox2.addWidget(self.create_deflector_checkbox())
-        hbox2.addWidget(self.create_buttons_box())
+        _hbox2 = QHBoxLayout()
+        _hbox2.addWidget(self.create_deflector_checkbox())
+        _hbox2.addWidget(self.create_buttons_box())
         
-        hbox3 = QVBoxLayout()
-        hbox3.addWidget(self.create_main_table_box())
+        _hbox3 = QVBoxLayout()
+        _hbox3.addWidget(self.create_main_table_box())
+        _hbox3.addWidget(self.create_last_floor_table_box())
+        _hbox3.setAlignment(self.main_table_box, Qt.AlignmentFlag.AlignTop)
+        _hbox3.setAlignment(self.last_floor_table_box, Qt.AlignmentFlag.AlignTop)
 
-        _layout.addLayout(hbox1)
-        _layout.addLayout(hbox2)
-        _layout.addLayout(hbox3)
+        _layout.setAlignment(_hbox2, Qt.AlignmentFlag.AlignTop)
+
+        _layout.addLayout(_hbox1)
+        _layout.addLayout(_hbox2)
+        _layout.addLayout(_hbox3)
         _widget.setLayout(_layout)
 
         return _widget
@@ -83,10 +84,10 @@ class MainWindow(QMainWindow):
     def create_tab2_content(self) -> object:
         _widget = QWidget()
         _layout = QVBoxLayout()
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(self.create_deflector_calculation())
+        _hbox1 = QHBoxLayout()
+        _hbox1.addWidget(self.create_deflector_calculation())
 
-        _layout.addLayout(hbox1)
+        _layout.addLayout(_hbox1)
         _widget.setLayout(_layout)
         return _widget
 
@@ -98,7 +99,8 @@ class MainWindow(QMainWindow):
         _box.setFixedWidth(445)
 
         self.init_data_layout = QGridLayout()
-        self.init_data_layout.setVerticalSpacing(10)
+        _init_data = self.init_data_layout
+        _init_data.setVerticalSpacing(10)
         labels = CONSTANTS.INIT_DATA.LABELS
         for i in range(len(labels)):
             label_0 = QLabel(labels[i][0])
@@ -110,81 +112,86 @@ class MainWindow(QMainWindow):
             line_edit.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
             label_1 = QLabel(labels[i][1])
             label_1.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
-            self.init_data_layout.addWidget(label_0, i, 0)
-            self.init_data_layout.addWidget(line_edit, i, 1)
-            self.init_data_layout.addWidget(label_1, i, 2)
+            _init_data.addWidget(label_0, i, 0)
+            _init_data.addWidget(line_edit, i, 1)
+            _init_data.addWidget(label_1, i, 2)
 
-        temperature_item = self.init_data_layout.itemAtPosition(0, 1)
+        temperature_item = _init_data.itemAtPosition(0, 1)
         self.temperature_widget = temperature_item.widget()
-        self.temperature_widget.setObjectName('temperature')
+        temperature_widget = self.temperature_widget
+        temperature_widget.setObjectName('temperature')
         temperature_regex = QRegularExpression("^(?:\d|[12]\d|30)(?:\.\d)?$")
         temperature_validator = QRegularExpressionValidator(temperature_regex)
-        self.temperature_widget.setValidator(temperature_validator)
-        self.temperature_widget.textChanged.connect(self.calculate_gravi_pressure)
-        self.temperature_widget.textChanged.connect(self.calculate_dynamic)
+        temperature_widget.setValidator(temperature_validator)
+        temperature_widget.textChanged.connect(self.calculate_gravi_pressure)
+        temperature_widget.textChanged.connect(self.calculate_dynamic)
 
-        surface_item = self.init_data_layout.itemAtPosition(1, 1)
+        surface_item = _init_data.itemAtPosition(1, 1)
         self.surface_widget = surface_item.widget()
-        self.surface_widget.setObjectName('surface')
+        surface_widget = self.surface_widget
+        surface_widget.setObjectName('surface')
         surface_regex = QRegularExpression("^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$")
         surface_validator = QRegularExpressionValidator(surface_regex)
-        self.surface_widget.setValidator(surface_validator)
-        self.surface_widget.textChanged.connect(self.calculate_specific_pressure_loss)
+        surface_widget.setValidator(surface_validator)
+        surface_widget.textChanged.connect(self.calculate_specific_pressure_loss)
 
-
-        floor_height_item = self.init_data_layout.itemAtPosition(2, 1)
+        floor_height_item = _init_data.itemAtPosition(2, 1)
         self.floor_height_widget = floor_height_item.widget()
+        floor_height_widget = self.floor_height_widget
         floor_height_regex = QRegularExpression("^(?:[1-9]\d?|100)(?:\.\d{1,2})?$")
         floor_height_validator = QRegularExpressionValidator(floor_height_regex)
-        self.floor_height_widget.setValidator(floor_height_validator)
-        self.floor_height_widget.textChanged.connect(self.set_base_floor_height_in_main_table)
+        floor_height_widget.setValidator(floor_height_validator)
+        floor_height_widget.textChanged.connect(self.set_base_floor_height_in_main_table)
 
-        self.channel_height_item = self.init_data_layout.itemAtPosition(3, 1)
+        self.channel_height_item = _init_data.itemAtPosition(3, 1)
         self.channel_height_widget = self.channel_height_item.widget()
-        self.channel_height_widget.setObjectName('channel_height')
+        channel_height_widget = self.channel_height_widget
+        channel_height_widget.setObjectName('channel_height')
         channel_height_regex = QRegularExpression("^(?:[1-9]|[1-9]\d|100)(?:\.\d{1,2})?$")
         channel_height_validator = QRegularExpressionValidator(channel_height_regex)
-        self.channel_height_widget.setValidator(channel_height_validator)
-        self.channel_height_widget.textChanged.connect(self.calculate_height)
+        channel_height_widget.setValidator(channel_height_validator)
+        channel_height_widget.textChanged.connect(self.calculate_height)
 
         klapan_label = QLabel(CONSTANTS.INIT_DATA.KLAPAN_LABEL)
         self.klapan_widget = QComboBox()
-        self.klapan_widget.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
-        self.klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
-        self.klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
-        self.klapan_widget.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
+        klapan_widget = self.klapan_widget
+        klapan_widget.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
+        klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
+        klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
+        klapan_widget.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
 
-        self.klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
+        self.klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(klapan_widget.currentText())
         self.klapan_air_flow_label = QLabel(f'{self.klapan_widget_value} м<sup>3</sup>/ч')
 
-        self.klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
-        self.klapan_widget.currentTextChanged.connect(self.calculate_klapan_pressure_loss)
-        self.klapan_widget.currentTextChanged.connect(self.activate_klapan_input)
+        klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
+        klapan_widget.currentTextChanged.connect(self.calculate_klapan_pressure_loss)
+        klapan_widget.currentTextChanged.connect(self.activate_klapan_input)
 
         klapan_input_label_1 = QLabel(CONSTANTS.INIT_DATA.KLAPAN_INPUT_LABEL_1)
         self.klapan_input = QLineEdit()
+        klapan_input = self.klapan_input
         klapan_input_label_2 = QLabel('м<sup>3</sup>/ч')
-        self.klapan_input.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
-        self.klapan_input.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
-        self.klapan_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
-        self.klapan_input.setDisabled(True)
+        klapan_input.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
+        klapan_input.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
+        klapan_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
+        klapan_input.setDisabled(True)
         klapan_input_regex = QRegularExpression("^(?:[1-9]|[1-9]\d|100)(?:)?$")
         klapan_input_validator = QRegularExpressionValidator(klapan_input_regex)
-        self.klapan_input.setValidator(klapan_input_validator)
-        self.klapan_input.setToolTip(CONSTANTS.INIT_DATA.KLAPAN_INPUT_TOOLTIP)
-        self.klapan_input.textChanged.connect(self.calculate_klapan_pressure_loss)
+        klapan_input.setValidator(klapan_input_validator)
+        klapan_input.setToolTip(CONSTANTS.INIT_DATA.KLAPAN_INPUT_TOOLTIP)
+        klapan_input.textChanged.connect(self.calculate_klapan_pressure_loss)
         
 
-        self.init_data_layout.addWidget(klapan_label, 4, 0)
-        self.init_data_layout.addWidget(self.klapan_widget, 4, 1, 1, 2)
-        self.init_data_layout.addWidget(self.klapan_air_flow_label, 4, 2)
-        self.init_data_layout.addWidget(klapan_input_label_1, 5, 0)
-        self.init_data_layout.addWidget(self.klapan_input, 5, 1)
-        self.init_data_layout.addWidget(klapan_input_label_2, 5, 2)
-        self.init_data_layout.setColumnStretch(1, 1)
-        self.init_data_layout.setColumnStretch(2, 1)
-        _box.setLayout(self.init_data_layout)
+        _init_data.addWidget(klapan_label, 4, 0)
+        _init_data.addWidget(self.klapan_widget, 4, 1, 1, 2)
+        _init_data.addWidget(self.klapan_air_flow_label, 4, 2)
+        _init_data.addWidget(klapan_input_label_1, 5, 0)
+        _init_data.addWidget(self.klapan_input, 5, 1)
+        _init_data.addWidget(klapan_input_label_2, 5, 2)
+        _init_data.setColumnStretch(1, 1)
+        _init_data.setColumnStretch(2, 1)
+        _box.setLayout(_init_data)
         return _box
 
 
@@ -194,53 +201,52 @@ class MainWindow(QMainWindow):
 
         label = QLabel('Добавить дефлектор')
         self.activate_deflector = QCheckBox()
-        self.activate_deflector.setDisabled(True)
-        self.activate_deflector.setChecked(False)
-        self.activate_deflector.stateChanged.connect(self.show_deflector_column_in_main_table)
-        self.activate_deflector.stateChanged.connect(self.set_deflector_pressure_in_main_table)
-        self.activate_deflector.stateChanged.connect(self.calculate_available_pressure)
+        activate_deflector = self.activate_deflector
+        activate_deflector.setDisabled(True)
+        activate_deflector.setChecked(False)
+        activate_deflector.stateChanged.connect(self.show_deflector_column_in_main_table)
+        activate_deflector.stateChanged.connect(self.set_deflector_pressure_in_main_table)
+        activate_deflector.stateChanged.connect(self.calculate_available_pressure)
 
         _layout.addWidget(label)
-        _layout.addWidget(self.activate_deflector)
+        _layout.addWidget(activate_deflector)
         _widget.setLayout(_layout)
         return _widget
 
 
     def create_buttons_box(self) -> object:
         _widget = QWidget()
+        _widget.setFixedHeight(53)
         _layout = QHBoxLayout()
         _layout.addStretch()
 
-        # self.last_floor_row_button = QPushButton()
-        # self.last_floor_row_button.setText(CONSTANTS.BUTTONS.LAST_FLOOR_BUTTON_TITLE)
-        # _layout.addWidget(self.last_floor_row_button)
-        # self.last_floor_row_button.clicked.connect(self.add_last_floor)
-
         self.add_row_button = QPushButton()
-        self.add_row_button.setText(CONSTANTS.BUTTONS.ADD_BUTTON_TITLE)
-        self.add_row_button.setStyleSheet('QPushButton:hover {background-color: rgb(102, 204, 0)}')
+        add_row_button = self.add_row_button
+        add_row_button.setText(CONSTANTS.BUTTONS.ADD_BUTTON_TITLE)
+        add_row_button.setStyleSheet('QPushButton:hover {background-color: rgb(102, 204, 0)}')
         # add_icon = QIcon('add_row.png')
         # self.add_row_button.setIcon(add_icon)
         # self.add_row_button.setIconSize(QSize(25, 25))
-        self.add_row_button.setToolTip(CONSTANTS.BUTTONS.ADD_BUTTON_TOOLTIP)
-        _layout.addWidget(self.add_row_button)
-        self.add_row_button.clicked.connect(self.add_row)
-        self.add_row_button.clicked.connect(self.set_floor_number_in_main_table)
-        self.add_row_button.clicked.connect(self._join_deflector_column_cells_in_main_table)
+        add_row_button.setToolTip(CONSTANTS.BUTTONS.ADD_BUTTON_TOOLTIP)
+        _layout.addWidget(add_row_button)
+        add_row_button.clicked.connect(self.add_row)
+        add_row_button.clicked.connect(self.set_floor_number_in_main_table)
+        add_row_button.clicked.connect(self._join_deflector_column_cells_in_main_table)
         # self.add_row_button.clicked.connect(self._set_deflector_pressure_in_main_table)
 
         self.delete_row_button = QPushButton()
-        self.delete_row_button.setText(CONSTANTS.BUTTONS.DELETE_BUTTON_TITLE)
-        self.delete_row_button.setStyleSheet('QPushButton:hover {background-color: rgb(255, 153, 153)}')
+        delete_row_button = self.delete_row_button
+        delete_row_button.setText(CONSTANTS.BUTTONS.DELETE_BUTTON_TITLE)
+        delete_row_button.setStyleSheet('QPushButton:hover {background-color: rgb(255, 153, 153)}')
         # delete_icon = QIcon('delete_row.png')
         # self.delete_row_button.setIcon(delete_icon)
         # self.delete_row_button.setIconSize(QSize(25, 25))
-        self.delete_row_button.setToolTip(CONSTANTS.BUTTONS.DELETE_BUTTON_TOOLTIP)
-        _layout.addWidget(self.delete_row_button)
-        self.delete_row_button.clicked.connect(self.delete_row)
-        self.delete_row_button.clicked.connect(self.update_full_air_flow_in_deflector_after_delete_row)
-        self.delete_row_button.clicked.connect(self.update_air_flow_column_in_main_table_after_delete_row)
-        self.delete_row_button.clicked.connect(self.set_floor_number_in_main_table)
+        delete_row_button.setToolTip(CONSTANTS.BUTTONS.DELETE_BUTTON_TOOLTIP)
+        _layout.addWidget(delete_row_button)
+        delete_row_button.clicked.connect(self.delete_row)
+        delete_row_button.clicked.connect(self.update_full_air_flow_in_deflector_after_delete_row)
+        delete_row_button.clicked.connect(self.update_air_flow_column_in_main_table_after_delete_row)
+        delete_row_button.clicked.connect(self.set_floor_number_in_main_table)
 
         _widget.setLayout(_layout)
         return _widget
@@ -255,21 +261,22 @@ class MainWindow(QMainWindow):
         _layout = QVBoxLayout()
 
         self.sputnik_table = QTableWidget(5, 15)
-        self.sputnik_table.verticalHeader().setVisible(False)
-        self.sputnik_table.horizontalHeader().setStretchLastSection(True)
-        self.sputnik_table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
-        self.sputnik_table.setStyleSheet("QTableWidget { border: 2px solid grey; }")
-        self.sputnik_table.setHorizontalHeaderLabels(CONSTANTS.SPUTNIK_TABLE.HEADER)
-        self.sputnik_table.setObjectName(CONSTANTS.SPUTNIK_TABLE.NAME)
+        _table = self.sputnik_table
+        _table.verticalHeader().setVisible(False)
+        _table.horizontalHeader().setStretchLastSection(True)
+        _table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
+        _table.setStyleSheet("QTableWidget { border: 2px solid grey; }")
+        _table.setHorizontalHeaderLabels(CONSTANTS.SPUTNIK_TABLE.HEADER)
+        _table.setObjectName(CONSTANTS.SPUTNIK_TABLE.NAME)
 
-        num_rows = self.sputnik_table.rowCount()
-        num_cols = self.sputnik_table.columnCount()
+        num_rows = _table.rowCount()
+        num_cols = _table.columnCount()
 
         # устанавливаем виджет QTableWidgetItem для всех ячеек таблицы и отключаем редактирование
         for row in range(num_rows):
             for col in range(num_cols):
-                self.sputnik_table.setItem(row, col, QTableWidgetItem())
-                self.sputnik_table.item(row, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                _table.setItem(row, col, QTableWidgetItem())
+                _table.item(row, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 editable = (
                     (0, 1),
                     (1, 1),
@@ -284,28 +291,28 @@ class MainWindow(QMainWindow):
                     (3, 11),
                 )
                 if (row, col) not in editable:
-                    self.sputnik_table.item(row, col).setFlags(Qt.ItemFlag.ItemIsEnabled)
-                else:
-                    self.sputnik_table.item(row, col).setBackground(QColor(229, 255, 204))
+                    _table.item(row, col).setFlags(Qt.ItemFlag.ItemIsEnabled)
+                else
+                    _table.item(row, col).setBackground(QColor(229, 255, 204))
 
         for row in range(num_rows):
-            self.sputnik_table.setRowHeight(row, 29)
+            _table.setRowHeight(row, 29)
             match row:
                 case 2 | 4:
-                    self.sputnik_table.setSpan(row, 0, 1, 13)
+                    _table.setSpan(row, 0, 1, 13)
                     # self.sputnik_table.item(row, 0).setBackground(QColor(224, 224, 224))
                 case 0:
-                    self.sputnik_table.setSpan(row, 2, 1, 11)
+                    _table.setSpan(row, 2, 1, 11)
                     # self.sputnik_table.item(row, 2).setBackground(QColor(224, 224, 224))
                 case 1 | 3:
-                    self.sputnik_table.setSpan(row, 14, 2, 1)
+                    _table.setSpan(row, 14, 2, 1)
 
         for i in range(num_cols):
             match i:
                 case 3 | 4:
-                    self.sputnik_table.setColumnWidth(i, 110)
+                    _table.setColumnWidth(i, 110)
                 case _:
-                    self.sputnik_table.setColumnWidth(i, 72)
+                    _table.setColumnWidth(i, 72)
                     
             # if i in (1, 2, 3, 4):
             #     self.sputnik_table.item(1, i).setBackground(QColor(229, 255, 204))
@@ -314,13 +321,13 @@ class MainWindow(QMainWindow):
             #     # self.sputnik_table.item(3, i).setFlags(Qt.ItemFlag.NoItemFlags)
 
         # установка заливки для редактируемых столбцов
-        self.sputnik_table.item(0, 1).setBackground(QColor(229, 255, 204))
+        _table.item(0, 1).setBackground(QColor(229, 255, 204))
 
 
         # заполняем таблицу
-        self.sputnik_table.item(0, 0).setText(self.klapan_widget.currentText())
-        self.sputnik_table.item(1, 0).setText('1-2')
-        self.sputnik_table.item(3, 0).setText('1*-2*')
+        _table.item(0, 0).setText(self.klapan_widget.currentText())
+        _table.item(1, 0).setText('1-2')
+        _table.item(3, 0).setText('1*-2*')
 
         # размещаем радиокнопки
         for row in (1, 3):
@@ -330,89 +337,92 @@ class MainWindow(QMainWindow):
             radio_button = QRadioButton(widget)
             layout.addWidget(radio_button)
             widget.setLayout(layout)
-            self.sputnik_table.setCellWidget(row, 14, widget)
+            _table.setCellWidget(row, 14, widget)
 
-        self.radio_button1 = self.sputnik_table.cellWidget(1, 14).findChild(QRadioButton)
-        self.radio_button2 = self.sputnik_table.cellWidget(3, 14).findChild(QRadioButton)
-        self.radio_button1.setChecked(True)
+        self.radio_button1 = _table.cellWidget(1, 14).findChild(QRadioButton)
+        self.radio_button2 = _table.cellWidget(3, 14).findChild(QRadioButton)
+        radio_button1, radio_button2 = self.radio_button1, self.radio_button2
+        radio_button1.setChecked(True)
 
-        self.radio_button1.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIP_1)
-        self.radio_button2.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIP_2)
+        radio_button1.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIP_1)
+        radio_button2.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIP_2)
 
         # обработчики
-        self.radio_button1.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_1)
-        self.radio_button2.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_2)
+        radio_button1.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_1)
+        radio_button2.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_2)
 
-        self.radio_button2.clicked.connect(self.uncheck_radio_button_1)
-        self.radio_button1.clicked.connect(self.uncheck_radio_button_2)
+        radio_button2.clicked.connect(self.uncheck_radio_button_1)
+        radio_button1.clicked.connect(self.uncheck_radio_button_2)
 
-        self.radio_button1.clicked.connect(self.calculate_kms_by_radiobutton_1)
-        self.radio_button2.clicked.connect(self.calculate_kms_by_radiobutton_2)
-        self.radio_button1.clicked.connect(self.calculate_branch_pressure_by_radiobutton_1)
-        self.radio_button2.clicked.connect(self.calculate_branch_pressure_by_radiobutton_2)
-        self.radio_button1.clicked.connect(self.calculate_full_pressure_by_radiobutton_1)
-        self.radio_button2.clicked.connect(self.calculate_full_pressure_by_radiobutton_2)
+        radio_button1.clicked.connect(self.calculate_kms_by_radiobutton_1)
+        radio_button2.clicked.connect(self.calculate_kms_by_radiobutton_2)
+        radio_button1.clicked.connect(self.calculate_branch_pressure_by_radiobutton_1)
+        radio_button2.clicked.connect(self.calculate_branch_pressure_by_radiobutton_2)
+        radio_button1.clicked.connect(self.calculate_full_pressure_by_radiobutton_1)
+        radio_button2.clicked.connect(self.calculate_full_pressure_by_radiobutton_2)
 
-        self.sputnik_table.cellChanged.connect(self.set_sputnik_airflow_in_main_table)
-        self.sputnik_table.cellChanged.connect(self.set_deflector_pressure_in_main_table)
+        _table.cellChanged.connect(self.set_sputnik_airflow_in_main_table)
+        _table.cellChanged.connect(self.set_deflector_pressure_in_main_table)
 
-        self.sputnik_table.cellChanged.connect(self.calculate_klapan_pressure_loss)
-        self.sputnik_table.cellChanged.connect(self.calculate_air_velocity)
-        self.sputnik_table.cellChanged.connect(self.calculate_diameter)
-        self.sputnik_table.cellChanged.connect(self.calculate_dynamic)
-        self.sputnik_table.cellChanged.connect(self.calculate_specific_pressure_loss)
-        self.sputnik_table.cellChanged.connect(self.calculate_m)
-        self.sputnik_table.cellChanged.connect(self.calculate_linear_pressure_loss)
-        self.sputnik_table.cellChanged.connect(self.calculate_local_pressure_loss)
-        self.sputnik_table.cellChanged.connect(self.calculate_sputnik_full_pressure_loss)
-        self.sputnik_table.cellChanged.connect(self.calculate_kms)
-        self.sputnik_table.cellChanged.connect(self.calculate_result_sputnik_pressure)
-        self.sputnik_table.cellChanged.connect(self.calculate_branch_pressure)
-        self.sputnik_table.cellChanged.connect(self.calculate_full_pressure)
+        _table.cellChanged.connect(self.calculate_klapan_pressure_loss)
+        _table.cellChanged.connect(self.calculate_air_velocity)
+        _table.cellChanged.connect(self.calculate_diameter)
+        _table.cellChanged.connect(self.calculate_dynamic)
+        _table.cellChanged.connect(self.calculate_specific_pressure_loss)
+        _table.cellChanged.connect(self.calculate_m)
+        _table.cellChanged.connect(self.calculate_linear_pressure_loss)
+        _table.cellChanged.connect(self.calculate_local_pressure_loss)
+        _table.cellChanged.connect(self.calculate_sputnik_full_pressure_loss)
+        _table.cellChanged.connect(self.calculate_kms)
+        _table.cellChanged.connect(self.calculate_result_sputnik_pressure)
+        _table.cellChanged.connect(self.calculate_branch_pressure)
+        _table.cellChanged.connect(self.calculate_full_pressure)
 
-        self.sputnik_table.itemChanged.connect(self.validate_input_data_in_tables)
+        _table.itemChanged.connect(self.validate_input_data_in_tables)
 
-        _layout.addWidget(self.sputnik_table)
+        _layout.addWidget(_table)
         _box.setLayout(_layout)
         return _box
 
 
     def create_main_table_box(self) -> object:
         _box = QGroupBox(CONSTANTS.MAIN_TABLE.TITLE)
+        self.main_table_box = _box
         style = self.box_style
         _box.setStyleSheet(style)
 
         _layout = QVBoxLayout()
 
         self.main_table = QTableWidget(5, 22)
-        self.main_table.horizontalHeader().setStretchLastSection(True)
-        self.main_table.setHorizontalHeaderLabels(CONSTANTS.MAIN_TABLE.HEADER)
-        self.main_table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
-        self.main_table.setStyleSheet("QTableWidget { border: 2px solid grey; }")
-        self.main_table.verticalHeader().setVisible(False)
-        self.main_table.setObjectName(CONSTANTS.MAIN_TABLE.NAME)
+        _table = self.main_table
+        _table.horizontalHeader().setStretchLastSection(True)
+        _table.setHorizontalHeaderLabels(CONSTANTS.MAIN_TABLE.HEADER)
+        _table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
+        _table.setStyleSheet("QTableWidget { border: 2px solid grey; }")
+        _table.verticalHeader().setVisible(False)
+        _table.setObjectName(CONSTANTS.MAIN_TABLE.NAME)
 
-        num_rows = self.main_table.rowCount()
-        num_cols = self.main_table.columnCount()
+        num_rows = _table.rowCount()
+        num_cols = _table.columnCount()
 
         # устанавливаем виджет QTableWidgetItem для всех ячеек таблицы
         for row in range(num_rows):
             for col in range(num_cols):
-                self.main_table.setItem(row, col, QTableWidgetItem())
-                self.main_table.item(row, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.main_table.item(row, 0).setText(str(row+1))
+                _table.setItem(row, col, QTableWidgetItem())
+                _table.item(row, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            _table.item(row, 0).setText(str(row+1))
 
         # установка ширины столбцов
         for i in range(num_cols):
             match i:
                 case 0:
-                    self.main_table.setColumnWidth(i, 50)
+                    _table.setColumnWidth(i, 50)
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
-                    self.main_table.setColumnWidth(i, 70)
+                    _table.setColumnWidth(i, 70)
                 case 4 | 5 | 6 | 7 | 8 | 9:
-                    self.main_table.setColumnWidth(i, 60)
+                    _table.setColumnWidth(i, 60)
                 case 10 | 11:
-                    self.main_table.setColumnWidth(i, 110)
+                    _table.setColumnWidth(i, 110)
 
             # установка заливки для редактируемых столбцов
             if i in (1, 2, 10, 11):
@@ -420,31 +430,82 @@ class MainWindow(QMainWindow):
                     self.main_table.item(row, i).setBackground(QColor(229, 255, 204))
 
         # self.main_table.setSpan(0, 6, 0, 0)
-        self.main_table.setColumnHidden(6, True)
+        _table.setColumnHidden(6, True)
 
         # обработчики
-        self.main_table.cellChanged.connect(self.update_result)
-        self.main_table.cellChanged.connect(self.update_height_column_in_main_table)
+        _table.cellChanged.connect(self.update_result)
+        _table.cellChanged.connect(self.update_height_column_in_main_table)
 
-        self.main_table.cellChanged.connect(self.calculate_gravi_pressure)
-        self.main_table.cellChanged.connect(self.calculate_air_velocity)
-        self.main_table.cellChanged.connect(self.calculate_dynamic)
-        self.main_table.cellChanged.connect(self.calculate_diameter)
-        self.main_table.cellChanged.connect(self.calculate_specific_pressure_loss)
-        self.main_table.cellChanged.connect(self.calculate_m)
-        self.main_table.cellChanged.connect(self.calculate_linear_pressure_loss)
-        self.main_table.cellChanged.connect(self.calculate_kms)
-        self.main_table.cellChanged.connect(self.calculate_pass_pressure)
-        self.main_table.cellChanged.connect(self.calculate_branch_pressure)
-        self.main_table.cellChanged.connect(self.calculate_available_pressure)
-        self.main_table.cellChanged.connect(self.calculate_height)
-        self.main_table.cellChanged.connect(self.calculate_full_pressure)
-        self.main_table.cellChanged.connect(self.set_full_air_flow_in_deflector)
+        _table.cellChanged.connect(self.calculate_gravi_pressure)
+        _table.cellChanged.connect(self.calculate_air_velocity)
+        _table.cellChanged.connect(self.calculate_dynamic)
+        _table.cellChanged.connect(self.calculate_diameter)
+        _table.cellChanged.connect(self.calculate_specific_pressure_loss)
+        _table.cellChanged.connect(self.calculate_m)
+        _table.cellChanged.connect(self.calculate_linear_pressure_loss)
+        _table.cellChanged.connect(self.calculate_kms)
+        _table.cellChanged.connect(self.calculate_pass_pressure)
+        _table.cellChanged.connect(self.calculate_branch_pressure)
+        _table.cellChanged.connect(self.calculate_available_pressure)
+        _table.cellChanged.connect(self.calculate_height)
+        _table.cellChanged.connect(self.calculate_full_pressure)
+        _table.cellChanged.connect(self.set_full_air_flow_in_deflector)
 
-        self.main_table.itemChanged.connect(self.validate_input_data_in_tables)
+        _table.itemChanged.connect(self.validate_input_data_in_tables)
 
-        _layout.addWidget(self.main_table)
+        _layout.addWidget(_table)
         _box.setLayout(_layout)
+        _box.setFixedHeight(_table.sizeHint().height() + 100)
+        return _box
+
+
+    def create_last_floor_table_box(self) -> object:
+        _box = QGroupBox(CONSTANTS.LAST_FLOOR_TABLE.TITLE)
+        self.last_floor_table_box = _box
+        style = self.box_style
+        _box.setStyleSheet(style)
+
+        _layout = QVBoxLayout()
+
+        self.last_floor_table = QTableWidget(1, 22)
+        _table = self.last_floor_table
+        _table.verticalHeader().setVisible(False)
+        _table.horizontalHeader().setVisible(False)
+        _table.horizontalHeader().setStretchLastSection(True)
+        _table.setStyleSheet("QTableWidget { border: 2px solid grey; }")
+        _table.setObjectName(CONSTANTS.LAST_FLOOR_TABLE.NAME)
+
+        num_cols = _table.columnCount()
+
+        # устанавливаем виджет QTableWidgetItem для всех ячеек таблицы
+        for col in range(num_cols):
+            _table.setItem(0, col, QTableWidgetItem())
+            _table.item(0, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # установка ширины столбцов
+        for i in range(num_cols):
+            match i:
+                case 0:
+                    _table.setColumnWidth(i, 50)
+                case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
+                    _table.setColumnWidth(i, 70)
+                case 4 | 5 | 6 | 7 | 8 | 9:
+                    _table.setColumnWidth(i, 60)
+                case 10 | 11:
+                    _table.setColumnWidth(i, 110)
+
+            # установка заливки для редактируемых столбцов
+            if i in (1, 2, 10, 11):
+                _table.item(0, i).setBackground(QColor(229, 255, 204))
+
+        # self.main_table.setSpan(0, 6, 0, 0)
+        _table.setColumnHidden(6, True)
+
+        # обработчики
+
+        _layout.addWidget(_table)
+        _box.setLayout(_layout)
+        _box.setFixedHeight(68)
         return _box
 
 
@@ -492,57 +553,50 @@ class MainWindow(QMainWindow):
         if num_rows > 1:
             selected_row = self.main_table.currentRow()
             self.main_table.removeRow(selected_row)
+            self.main_table_box.setFixedHeight(self.main_table_box.height() - 30)
 
 
     def add_row(self) -> None:
-        if not self.last_floor:
-            num_rows = self.main_table.rowCount()
-            num_cols = self.main_table.columnCount()
-            self.main_table.insertRow(num_rows)
+        num_rows = self.main_table.rowCount()
+        num_cols = self.main_table.columnCount()
+        self.main_table.insertRow(num_rows)
 
-            # вставка номера строки
-            item = QTableWidgetItem(str(num_rows + 1))
-            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        # вставка номера строки
+        item = QTableWidgetItem(str(num_rows + 1))
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            green_cols = (1, 2, 10, 11)
-            # добавление виджета в расчетные ячейки
-            for col in range(num_cols):
-                if col not in green_cols or col not in (0, 3):
-                    self.main_table.setItem(num_rows, col, QTableWidgetItem())
-
-            # заливка зеленым ячеек для ввода
-            for col in green_cols:
+        green_cols = (1, 2, 10, 11)
+        # добавление виджета в расчетные ячейки
+        for col in range(num_cols):
+            if col not in green_cols or col not in (0, 3):
                 self.main_table.setItem(num_rows, col, QTableWidgetItem())
-                self.main_table.item(num_rows, col).setBackground(QColor(229, 255, 204))
-                self.main_table.item(num_rows, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            # вставка высоты этажа
-            if self.floor_height_widget.text() != '':
-                self.main_table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
-                self.main_table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        # заливка зеленым ячеек для ввода
+        for col in green_cols:
+            self.main_table.setItem(num_rows, col, QTableWidgetItem())
+            self.main_table.item(num_rows, col).setBackground(QColor(229, 255, 204))
+            self.main_table.item(num_rows, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            # установка расхода воздуха
-            init_flow = self.main_table.item(0, 3)
-            last_flow = self.main_table.item(num_rows-1, 3)
-            if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
-                flow = int(init_flow.text()) + int(last_flow.text())
-                flow = str(flow)
-                self.main_table.setItem(num_rows, 3, QTableWidgetItem())
-                self.main_table.item(num_rows, 3).setText(flow)
-                self.main_table.item(num_rows, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        # вставка высоты этажа
+        if self.floor_height_widget.text() != '':
+            self.main_table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
+            self.main_table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            self.main_table.setItem(num_rows, 0, item)
+        # установка расхода воздуха
+        init_flow = self.main_table.item(0, 3)
+        last_flow = self.main_table.item(num_rows-1, 3)
+        if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
+            flow = int(init_flow.text()) + int(last_flow.text())
+            flow = str(flow)
+            self.main_table.setItem(num_rows, 3, QTableWidgetItem())
+            self.main_table.item(num_rows, 3).setText(flow)
+            self.main_table.item(num_rows, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.main_table.setItem(num_rows, 0, item)
+        if self.main_table_box.height() < 550:
+            self.main_table_box.setFixedHeight(self.main_table_box.height() + 30)
+
         # self.set_row_columns_in_not_editable_mode(num_rows)
-        else:
-            pass
-
-
-    # def add_last_floor(self) -> None:
-    #     num_rows = self.main_table.rowCount()
-    #     self.main_table.insertRow(num_rows)
-    #     self.main_table.setItem(num_rows, 0, QTableWidgetItem('Последний'))
-    #     self.main_table.item(num_rows, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    #     self.last_floor = True
 
 
     def set_klapan_air_flow_in_label(self, value) -> None:
@@ -1332,11 +1386,10 @@ class MainWindow(QMainWindow):
 
 
     def set_floor_number_in_main_table(self) -> None:
-        if not self.last_floor:
-            num_rows = self.main_table.rowCount()
-            for row in range(num_rows):
-                self.main_table.item(row, 0).setText(str(row+1))
-                self.main_table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        num_rows = self.main_table.rowCount()
+        for row in range(num_rows):
+            self.main_table.item(row, 0).setText(str(row+1))
+            self.main_table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
     # def set_channel_height_in_main_table(self) -> None:
@@ -1549,41 +1602,41 @@ class MainWindow(QMainWindow):
         _layout = QHBoxLayout()
 
         self.deflector = QTableWidget(9, 1)
-        self.deflector.horizontalHeader().setVisible(False)
-        self.deflector.verticalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
-        self.deflector.verticalHeader().setStyleSheet("QHeaderView::section { border-top: 0px solid gray; border-bottom: 0px solid gray; }")
-        self.deflector.setStyleSheet("QHeaderView {padding: 5px; vertical-align: top} QTableWidget { border: 2px solid grey; }")
-        self.deflector.setVerticalHeaderLabels(CONSTANTS.DEFLECTOR.HEADER)
-        self.deflector.setObjectName(CONSTANTS.DEFLECTOR.NAME)
+        _table = self.deflector
+        _table.horizontalHeader().setVisible(False)
+        _table.verticalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
+        _table.verticalHeader().setStyleSheet("QHeaderView::section { border-top: 0px solid gray; border-bottom: 0px solid gray; }")
+        _table.setStyleSheet("QHeaderView {padding: 5px; vertical-align: top} QTableWidget { border: 2px solid grey; }")
+        _table.setVerticalHeaderLabels(CONSTANTS.DEFLECTOR.HEADER)
+        _table.setObjectName(CONSTANTS.DEFLECTOR.NAME)
 
-        num_rows = self.deflector.rowCount()
+        num_rows = _table.rowCount()
         for row in range(num_rows):
-            self.deflector.setItem(row, 0, QTableWidgetItem())
-            self.deflector.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            _table.setItem(row, 0, QTableWidgetItem())
+            _table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if row == 0:
-                self.deflector.item(row, 0).setBackground(QColor(229, 255, 204))
+                _table.item(row, 0).setBackground(QColor(229, 255, 204))
             else:
-                self.deflector.item(row, 0).setFlags(Qt.ItemFlag.ItemIsEnabled)
+                _table.item(row, 0).setFlags(Qt.ItemFlag.ItemIsEnabled)
 
-        self.deflector.cellChanged.connect(self.calculate_recommended_deflector_velocity)
-        self.deflector.cellChanged.connect(self.calculate_required_deflector_square)
-        self.deflector.cellChanged.connect(self.calculate_deflector_diameter)
-        self.deflector.cellChanged.connect(self.calculate_real_deflector_velocity)
-        self.deflector.cellChanged.connect(self.calculate_velocity_relation)
-        self.deflector.cellChanged.connect(self.calculate_pressure_relation)
-        self.deflector.cellChanged.connect(self.calculate_deflector_pressure)
-        self.deflector.cellChanged.connect(self.activate_deflector_checkbox)
-        self.deflector.cellChanged.connect(self.calculate_available_pressure)
+        _table.cellChanged.connect(self.calculate_recommended_deflector_velocity)
+        _table.cellChanged.connect(self.calculate_required_deflector_square)
+        _table.cellChanged.connect(self.calculate_deflector_diameter)
+        _table.cellChanged.connect(self.calculate_real_deflector_velocity)
+        _table.cellChanged.connect(self.calculate_velocity_relation)
+        _table.cellChanged.connect(self.calculate_pressure_relation)
+        _table.cellChanged.connect(self.calculate_deflector_pressure)
+        _table.cellChanged.connect(self.activate_deflector_checkbox)
+        _table.cellChanged.connect(self.calculate_available_pressure)
 
-        self.deflector.cellChanged.connect(self.set_deflector_pressure_in_main_table)
+        _table.cellChanged.connect(self.set_deflector_pressure_in_main_table)
 
-        self.deflector.itemChanged.connect(self.update_deflector_pressure_in_main_table)
-        self.deflector.itemChanged.connect(self.validate_deflector_input)
+        _table.itemChanged.connect(self.update_deflector_pressure_in_main_table)
+        _table.itemChanged.connect(self.validate_deflector_input)
 
 
-        _layout.addWidget(self.deflector)
+        _layout.addWidget(_table)
         _box.setLayout(_layout)
-        # _box.adjustSize()
         return _box
 
 
