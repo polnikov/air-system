@@ -211,10 +211,10 @@ class MainWindow(QMainWindow):
         _layout = QHBoxLayout()
         _layout.addStretch()
 
-        self.last_floor_row_button = QPushButton()
-        self.last_floor_row_button.setText(CONSTANTS.BUTTONS.LAST_FLOOR_BUTTON_TITLE)
-        _layout.addWidget(self.last_floor_row_button)
-        self.last_floor_row_button.clicked.connect(self.add_last_floor)
+        # self.last_floor_row_button = QPushButton()
+        # self.last_floor_row_button.setText(CONSTANTS.BUTTONS.LAST_FLOOR_BUTTON_TITLE)
+        # _layout.addWidget(self.last_floor_row_button)
+        # self.last_floor_row_button.clicked.connect(self.add_last_floor)
 
         self.add_row_button = QPushButton()
         self.add_row_button.setText(CONSTANTS.BUTTONS.ADD_BUTTON_TITLE)
@@ -537,12 +537,12 @@ class MainWindow(QMainWindow):
             pass
 
 
-    def add_last_floor(self) -> None:
-        num_rows = self.main_table.rowCount()
-        self.main_table.insertRow(num_rows)
-        self.main_table.setItem(num_rows, 0, QTableWidgetItem('Последний'))
-        self.main_table.item(num_rows, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.last_floor = True
+    # def add_last_floor(self) -> None:
+    #     num_rows = self.main_table.rowCount()
+    #     self.main_table.insertRow(num_rows)
+    #     self.main_table.setItem(num_rows, 0, QTableWidgetItem('Последний'))
+    #     self.main_table.item(num_rows, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    #     self.last_floor = True
 
 
     def set_klapan_air_flow_in_label(self, value) -> None:
