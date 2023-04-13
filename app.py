@@ -1026,7 +1026,6 @@ class MainWindow(QMainWindow):
                 value = str(value)
                 self.main_table.item(row, 3).setText(value)
                 self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            
 
 
     def update_air_flow_column_in_main_table_after_delete_row(self) -> None:
@@ -1501,6 +1500,12 @@ class MainWindow(QMainWindow):
             elif all([self.radio_button2.isChecked(), klapan_full_pressure_two]):
                 klapan_full_pressure = klapan_full_pressure_two
                 self._calculate_full_pressure_by_radiobutton(klapan_full_pressure)
+            else:
+                table = self.main_table
+                num_rows = table.rowCount()
+                for row in range(num_rows):
+                    table.setItem(row, 20, QTableWidgetItem())
+                    table.item(row, 20).setText('')
 
 
     def calculate_full_pressure_by_radiobutton_1(self, checked) -> None:
@@ -1521,9 +1526,10 @@ class MainWindow(QMainWindow):
 
 
     def _calculate_full_pressure_by_radiobutton(self, klapan_full_pressure) -> None:
-        num_rows = self.main_table.rowCount()
+        table = self.main_table
+        num_rows = table.rowCount()
         for row in range(num_rows):
-            branch_pressure = self.main_table.item(row, 19)
+            branch_pressure = table.item(row, 19)
 
             if klapan_full_pressure and branch_pressure and branch_pressure.text() != '':
                 branch_pressure = float(branch_pressure.text())
@@ -1531,26 +1537,26 @@ class MainWindow(QMainWindow):
 
                 all_pass_pressure = []
                 for line in range(row, num_rows):
-                    pass_pressure = self.main_table.item(line, 16)
+                    pass_pressure = table.item(line, 16)
                     if pass_pressure and pass_pressure.text() != '':
                         all_pass_pressure.append(pass_pressure.text())
                 sum_pass_pressure = sum(map(float, all_pass_pressure))
 
                 all_linear_pressure = []
                 for line in range(row, num_rows):
-                    linear_pressure = self.main_table.item(line, 18)
+                    linear_pressure = table.item(line, 18)
                     if linear_pressure and linear_pressure.text() != '':
                         all_linear_pressure.append(linear_pressure.text())
                 sum_linear_pressure = sum(map(float, all_linear_pressure))
 
                 result = klapan_full_pressure + branch_pressure + sum_pass_pressure + sum_linear_pressure
                 result = "{:.2f}".format(round(result, 2))
-                self.main_table.setItem(row, 20, QTableWidgetItem())
-                self.main_table.item(row, 20).setText(result)
-                self.main_table.item(row, 20).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                table.setItem(row, 20, QTableWidgetItem())
+                table.item(row, 20).setText(result)
+                table.item(row, 20).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
-                self.main_table.setItem(row, 20, QTableWidgetItem())
-                self.main_table.item(row, 20).setText('')
+                table.setItem(row, 20, QTableWidgetItem())
+                table.item(row, 20).setText('')
 
 
     def update_last_row_after_delete_row(self) -> None:
@@ -1647,11 +1653,14 @@ class MainWindow(QMainWindow):
 
 
     def set_full_air_flow_in_deflector(self, row, column) -> None:
-        last_row_main_table = self.main_table.rowCount() - 1
-        if row == last_row_main_table and column == 3:
-            air_flow = self.main_table.item(last_row_main_table, 3)
-            if air_flow and air_flow.text() != '':
-                self.deflector.item(2, 0).setText(air_flow.text())
+        last_flow_row = self.main_table.rowCount() - 2
+        if row == last_flow_row and column == 3:
+            init_flow = self.main_table.item(0, 3)
+            last_flow = self.main_table.item(last_flow_row, 3)
+
+            if all([init_flow, last_flow]) and all([init_flow.text() != '', last_flow.text() != '']):
+                result = int(init_flow.text()) + int(last_flow.text())
+                self.deflector.item(2, 0).setText(str(result))
             else:
                 self.deflector.item(2, 0).setText('')
 
@@ -1761,6 +1770,7 @@ class MainWindow(QMainWindow):
     def _join_deflector_column_cells_in_main_table(self) -> None:
         num_rows = self.main_table.rowCount()
         self.main_table.setSpan(0, 6, num_rows, 1)
+        self.main_table.item(0, 6).setBackground(QColor(204, 204, 255))
 
 
     def activate_deflector_checkbox(self, row, column) -> None:
@@ -1781,17 +1791,18 @@ class MainWindow(QMainWindow):
     def set_deflector_pressure_in_main_table(self, row=False, column=False) -> None:
         sender = self.sender()
         deflector_pressure = self.deflector.item(8, 0).text()
+        main_table = self.main_table
 
         if isinstance(sender, QCheckBox):
             if deflector_pressure and row == 2:
-                self.main_table.item(0, 6).setText(deflector_pressure)
-                self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
+                main_table.item(0, 6).setText(deflector_pressure)
+                main_table.item(0, 6).setBackground(QColor(204, 204, 255))
+            else:
+                main_table.item(0, 6).setText('')
         elif isinstance(sender, QTableWidget):
             if deflector_pressure and row == 8 and column == 0:
-                self.main_table.item(0, 6).setText(deflector_pressure)
-                self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
-        else:
-            self.main_table.item(0, 6).setText('')
+                main_table.item(0, 6).setText(deflector_pressure)
+                main_table.item(0, 6).setBackground(QColor(204, 204, 255))
 
 
     def update_deflector_pressure_in_main_table(self, item) -> None:
