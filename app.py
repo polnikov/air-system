@@ -1216,7 +1216,11 @@ class MainWindow(QMainWindow):
                     main_b = main_a
 
                 if all([floor_flow, main_a, main_b]) and all([floor_flow.text() != '', main_a.text() != '', main_b.text() != '']):
-                    floor_flow = float(floor_flow.text())
+                    if row == num_rows-2:
+                        floor_flow = int(floor_flow.text()) + int(main_table.item(row, 3).text())
+                    else:
+                        floor_flow = float(floor_flow.text())
+
                     main_a, main_b = int(main_a.text()), int(main_b.text())
 
                     x_l = sputnik_flow / floor_flow
@@ -1920,6 +1924,7 @@ class MainWindow(QMainWindow):
             pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
             if not re.match(pattern, item.text()):
                 item.setText('')
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 item.setText(item.text())
 
