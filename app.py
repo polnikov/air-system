@@ -1,11 +1,12 @@
 import os
+import platform
 import re
 import math
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
 from PyQt6.QtCore import QSize, Qt, QRegularExpression
-from PyQt6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator
+from PyQt6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator, QAction
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -46,11 +47,25 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(CONSTANTS.APP_TITLE)
         self.box_style = "QGroupBox::title {color: blue;}"
+
+        menubar = self.menuBar()
+        help_action = QAction("Руководство", self)
+        menubar.addAction(help_action)
+        menubar.triggered.connect(self.open_manual)
+        menubar.setStyleSheet("background-color: #E0E0E0")
+
         self.tab_widget = QTabWidget(self)
         self.setCentralWidget(self.tab_widget)
         self.tab_widget.addTab(self.create_tab1_content(), CONSTANTS.TAB1_TITLE)
         self.tab_widget.addTab(self.create_tab2_content(), CONSTANTS.TAB2_TITLE)
+
         self.showMaximized()
+
+
+    def open_manual(self):
+        if platform.system() == "Windows":
+            os.startfile(os.path.join(basedir, 'natural_air_system_manual.pdf'))
+            
 
 
     def create_tab1_content(self) -> object:
