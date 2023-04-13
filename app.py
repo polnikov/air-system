@@ -455,6 +455,7 @@ class MainWindow(QMainWindow):
         _table.cellChanged.connect(self.set_full_air_flow_in_deflector)
 
         _table.itemChanged.connect(self.validate_input_data_in_tables)
+        _table.itemChanged.connect(self.validate_last_floor_kms)
 
         _table.setMinimumHeight(150)
         _layout.addWidget(_table)
@@ -467,14 +468,13 @@ class MainWindow(QMainWindow):
         table = self.sender().objectName()
         column = item.column()
         # Allows values: whole numbers 0...2000
-        dimensions_pattern = pattern = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
+        dimensions_pattern = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
         # Allows values: 0...100 with or without one | two digit after separator
-        length_height_kms_pattern = pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
+        length_height_kms_pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
         match table:
             case 'sputnik':
                 if column in (1, 2, 3, 4, 11):
                     match column:
-                        
                         case 1:
                             # Allows values: 0...200 with or without one digit after separator
                             pattern = r'^(?:\d{1,2}|1\d{2}|2\d{2})(?:\.\d)?$'
@@ -492,7 +492,7 @@ class MainWindow(QMainWindow):
                 if column in (1, 10, 11):
                     match column:
                         case 1:
-                            length_height_kms_pattern
+                            pattern = length_height_kms_pattern
                         case 10 | 11:
                             pattern = dimensions_pattern
 
@@ -1032,15 +1032,16 @@ class MainWindow(QMainWindow):
 
     def fill_air_flow_column_in_main_table(self, flow) -> None:
         num_rows = self.main_table.rowCount()
-        for row in range(1, num_rows):
-            if row == num_rows-1:
-                self.main_table.item(row, 3).setText(str(flow))
-                self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            else:
-                value = int(flow) + int(self.main_table.item(row-1, 3).text())
-                value = str(value)
-                self.main_table.item(row, 3).setText(value)
-                self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        if flow:
+            for row in range(1, num_rows):
+                if row == num_rows-1:
+                    self.main_table.item(row, 3).setText(str(flow))
+                    self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                else:
+                    value = int(flow) + int(self.main_table.item(row-1, 3).text())
+                    value = str(value)
+                    self.main_table.item(row, 3).setText(value)
+                    self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
     def update_air_flow_column_in_main_table_after_delete_row(self) -> None:
@@ -1996,6 +1997,18 @@ class MainWindow(QMainWindow):
         if all([table.item(num_rows-2, 8), table.item(num_rows-2, 8).text() == '0']):
             table.item(num_rows-2, 8).setText('')
 
+
+    def validate_last_floor_kms(self, item) -> None:
+        table = self.main_table
+        last_row = table.rowCount() - 1
+        column = item.column()
+        if column in (8, 9):
+            # Allows values: 0...100 with or without one | two digit after separator
+            pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
+            if not re.match(pattern, item.text()):
+                item.setText('')
+            else:
+                item.setText(item.text())
 
 
 
