@@ -243,7 +243,7 @@ class MainWindow(QMainWindow):
         _layout.addWidget(delete_row_button)
         delete_row_button.clicked.connect(self.delete_row)
         delete_row_button.clicked.connect(self.update_full_air_flow_in_deflector_after_delete_row)
-        delete_row_button.clicked.connect(self.update_air_flow_column_in_main_table_after_delete_row)
+        # delete_row_button.clicked.connect(self.update_air_flow_column_in_main_table_after_delete_row)
         delete_row_button.clicked.connect(self.set_floor_number_in_main_table)
 
         _widget.setLayout(_layout)
@@ -407,10 +407,11 @@ class MainWindow(QMainWindow):
             for col in range(num_cols):
                 _table.setItem(row, col, QTableWidgetItem())
                 _table.item(row, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
             if row == num_rows-1:
-                _table.item(row, 0).setForeground(QColor(255, 0, 0))
+                _table.item(row, 0).setBackground(QColor(255, 204, 204))
             else:
-                _table.item(row, 0).setForeground(QColor(0, 0, 0))
+                _table.item(row, 0).setBackground(QColor(255, 255, 255))
             _table.item(row, 0).setText(str(row+1))
 
         # установка ширины столбцов
@@ -432,7 +433,7 @@ class MainWindow(QMainWindow):
 
         # self.main_table.setSpan(0, 6, 0, 0)
         _table.setColumnHidden(6, True)
-        self._clean_kms_for_last_floor()
+        self._clean_for_last_floor()
 
         # обработчики
         _table.cellChanged.connect(self.update_result)
@@ -508,7 +509,9 @@ class MainWindow(QMainWindow):
             self.main_table.removeRow(selected_row)
             if num_rows < 15:
                 self.main_table_box.setFixedHeight(self.main_table_box.height() - 30)
-            self._clean_kms_for_last_floor()
+            self._clean_for_last_floor()
+            init_flow = self.main_table.item(0, 3).text()
+            self.fill_air_flow_column_in_main_table(init_flow)
 
     def add_row(self) -> None:
         table = self.main_table
@@ -533,20 +536,26 @@ class MainWindow(QMainWindow):
             table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
             table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # установка расхода воздуха
-        init_flow = table.item(0, 3)
-        last_flow = table.item(num_rows-1, 3)
-        if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
-            flow = int(init_flow.text()) + int(last_flow.text())
-            flow = str(flow)
-            table.setItem(num_rows, 3, QTableWidgetItem())
-            table.item(num_rows, 3).setText(flow)
-            table.item(num_rows, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        # # установка расхода воздуха
+        # init_flow = table.item(0, 3)
+        # last_flow = table.item(num_rows-2, 3)
+        # if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
+        #     flow = int(init_flow.text()) + int(last_flow.text())
+        #     flow = str(flow)
+        #     table.setItem(num_rows-2, 3, QTableWidgetItem())
+        #     table.item(num_rows-2, 3).setText(flow)
+        #     table.item(num_rows-2, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        #     table.setItem(num_rows-1, 3, QTableWidgetItem())
+        #     table.item(num_rows-1, 3).setText(init_flow.text())
+        #     table.item(num_rows-1, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.update_air_flow_column_in_main_table_after_add_row()
 
         if self.main_table_box.height() < 600:
             self.main_table_box.setFixedHeight(self.main_table_box.height() + 30)
 
-        self._clean_kms_for_last_floor()
+        self._clean_for_last_floor()
         # self.set_row_columns_in_not_editable_mode(num_rows)
 
 
@@ -555,9 +564,9 @@ class MainWindow(QMainWindow):
         num_rows = table.rowCount()
         for row in range(num_rows):
             if row == num_rows-1:
-                table.item(row, 0).setForeground(QColor(255, 0, 0))
+                table.item(row, 0).setBackground(QColor(255, 204, 204))
             else:
-                table.item(row, 0).setForeground(QColor(0, 0, 0))
+                table.item(row, 0).setBackground(QColor(255, 255, 255))
             table.item(row, 0).setText(str(row+1))
             table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -1009,10 +1018,15 @@ class MainWindow(QMainWindow):
     def fill_air_flow_column_in_main_table(self, flow) -> None:
         num_rows = self.main_table.rowCount()
         for row in range(1, num_rows):
-            value = int(flow) + int(self.main_table.item(row-1, 3).text())
-            value = str(value)
-            self.main_table.item(row, 3).setText(value)
-            self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            if row == num_rows-1:
+                self.main_table.item(row, 3).setText(str(flow))
+                self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            else:
+                value = int(flow) + int(self.main_table.item(row-1, 3).text())
+                value = str(value)
+                self.main_table.item(row, 3).setText(value)
+                self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            
 
 
     def update_air_flow_column_in_main_table_after_delete_row(self) -> None:
@@ -1025,6 +1039,22 @@ class MainWindow(QMainWindow):
                 value = str(value)
                 self.main_table.item(row, 3).setText(value)
                 self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+
+    def update_air_flow_column_in_main_table_after_add_row(self) -> None:
+        table = self.main_table
+        init_flow = table.item(0, 3)
+        if all([init_flow, init_flow.text() != '']):
+            num_rows = table.rowCount()
+            init_flow = int(init_flow.text())
+            last_flow = int(table.item(num_rows-3, 3).text())
+            new_value = init_flow + last_flow
+
+            table.item(num_rows-1, 3).setText(str(init_flow))
+            table.item(num_rows-1, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            table.item(num_rows-2, 3).setText(str(new_value))
+            table.item(num_rows-2, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
     def clean_air_flow_column_in_main_table(self) -> None:
@@ -1827,6 +1857,16 @@ class MainWindow(QMainWindow):
                             else:
                                 self.main_table.setItem(row, 7, QTableWidgetItem())
                                 self.main_table.item(row, 7).setText('')
+                        else:
+                            gravi_pressure = self.main_table.item(row, 5)
+                            if all([gravi_pressure, gravi_pressure.text() != '']):
+                                result = gravi_pressure.text()
+                                self.main_table.setItem(row, 7, QTableWidgetItem())
+                                self.main_table.item(row, 7).setText(result)
+                                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            else:
+                                self.main_table.setItem(row, 7, QTableWidgetItem())
+                                self.main_table.item(row, 7).setText('')
         elif isinstance(sender, QCheckBox):
             if row == 2:
                 num_rows = self.main_table.rowCount()
@@ -1912,7 +1952,7 @@ class MainWindow(QMainWindow):
     #             self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_2_a, sputnik_2_b)
 
 
-    def _clean_kms_for_last_floor(self) -> None:
+    def _clean_for_last_floor(self) -> None:
         table = self.main_table
         num_rows = table.rowCount()
 
