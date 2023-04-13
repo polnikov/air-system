@@ -294,25 +294,21 @@ class MainWindow(QMainWindow):
                     _table.item(row, col).setBackground(QColor(229, 255, 204))
 
         for row in range(num_rows):
-            _table.setRowHeight(row, 29)
+            _table.setRowHeight(row, 36)
             match row:
                 case 2 | 4:
                     _table.setSpan(row, 0, 1, 13)
-                    # self.sputnik_table.item(row, 0).setBackground(QColor(224, 224, 224))
                 case 0:
                     _table.setSpan(row, 2, 1, 11)
-                    # self.sputnik_table.item(row, 2).setBackground(QColor(224, 224, 224))
                 case 1 | 3:
                     _table.setSpan(row, 14, 2, 1)
 
         for col in range(num_cols):
             match col:
                 case 0:
-                    _table.setColumnWidth(col, 60)
+                    _table.setColumnWidth(col, 80)
                 case 1:
                     _table.setColumnWidth(col, 80)
-                # case 14:
-                #     _table.setColumnWidth(col, 30)
                 case 3 | 4:
                     _table.setColumnWidth(col, 110)
                 case _:
@@ -322,9 +318,10 @@ class MainWindow(QMainWindow):
         _table.item(0, 1).setBackground(QColor(229, 255, 204))
 
         # заполняем таблицу
+        _table.item(0, 0).setText(CONSTANTS.SPUTNIK_TABLE.KLAPAN_LABEL)
         _table.item(0, 1).setToolTip(CONSTANTS.SPUTNIK_TABLE.KLAPAN_FLOW_TOOLTIP)
-        _table.item(1, 0).setText('1-2')
-        _table.item(3, 0).setText('1*-2*')
+        _table.item(1, 0).setText(CONSTANTS.SPUTNIK_TABLE.SECTOR_1)
+        _table.item(3, 0).setText(CONSTANTS.SPUTNIK_TABLE.SECTOR_2)
 
         # размещаем радиокнопки
         for row in (1, 3):

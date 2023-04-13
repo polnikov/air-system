@@ -140,6 +140,9 @@ class CONSTANTS:
         RADIO_TOOLTIP_1 = 'Расчёт одностороннего блока'
         RADIO_TOOLTIP_2 = 'Расчёт двухстороннего блока'
         KLAPAN_FLOW_TOOLTIP = 'Проектный расход\nчерез клапан'
+        KLAPAN_LABEL = 'Приточный\nклапан'
+        SECTOR_1 = '1-2'
+        SECTOR_2 = '1*-2*'
 
 
     class REFERENCE_DATA:
