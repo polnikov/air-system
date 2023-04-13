@@ -5,9 +5,9 @@ import math
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
-from PyQt6.QtCore import QSize, Qt, QRegularExpression
-from PyQt6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator, QAction
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QSize, Qt, QRegularExpression
+from PySide6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator, QAction
+from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
     QMessageBox,
