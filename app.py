@@ -503,15 +503,19 @@ class MainWindow(QMainWindow):
 
 
     def delete_row(self) -> None:
-        num_rows = self.main_table.rowCount()
+        table = self.main_table
+        num_rows = table.rowCount()
         if num_rows > 2:
-            selected_row = self.main_table.currentRow()
-            self.main_table.removeRow(selected_row)
+            selected_row = table.currentRow()
+            table.removeRow(selected_row)
+
             if num_rows < 15:
                 self.main_table_box.setFixedHeight(self.main_table_box.height() - 30)
+
             self._clean_for_last_floor()
-            init_flow = self.main_table.item(0, 3).text()
+            init_flow = table.item(0, 3).text()
             self.fill_air_flow_column_in_main_table(init_flow)
+
 
     def add_row(self) -> None:
         table = self.main_table
@@ -589,9 +593,10 @@ class MainWindow(QMainWindow):
 
 
     def update_result(self, row, column) -> None:
+        table = self.main_table
         if column in (7, 20):
-            available_pressure = self.main_table.item(row, 7)
-            full_pressure = self.main_table.item(row, 20)
+            available_pressure = table.item(row, 7)
+            full_pressure = table.item(row, 20)
 
             if all([available_pressure, full_pressure]) and all([available_pressure.text() != '', full_pressure.text() != '']):
                 available_pressure = float(available_pressure.text())
@@ -601,55 +606,56 @@ class MainWindow(QMainWindow):
                     result = 'OK'
                     item = QTableWidgetItem(result)
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.main_table.setItem(row, 21, item)
-                    self.main_table.item(row, 21).setBackground(QColor(229, 255, 204))
+                    table.setItem(row, 21, item)
+                    table.item(row, 21).setBackground(QColor(229, 255, 204))
                 else:
                     result = 'Тяги нет!'
                     item = QTableWidgetItem(result)
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    self.main_table.setItem(row, 21, item)
-                    self.main_table.item(row, 21).setBackground(QColor(255, 153, 153))
+                    table.setItem(row, 21, item)
+                    table.item(row, 21).setBackground(QColor(255, 153, 153))
             else:
                 result = ''
                 item = QTableWidgetItem(result)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.setItem(row, 21, item)
-                self.main_table.item(row, 21).setBackground(QColor(255, 255, 255))
+                table.setItem(row, 21, item)
+                table.item(row, 21).setBackground(QColor(255, 255, 255))
 
 
     def calculate_gravi_pressure(self, row=False, column=False) -> None:
+        table = self.main_table
         sender = self.sender()
         if isinstance(sender, QTableWidget):
             # если изменения данных произошли в таблице
             if column == 4:
                 temperature = self.temperature_widget.text()
-                item_4 = self.main_table.item(row, 4)
+                item_4 = table.item(row, 4)
                 if (item_4.text() != '' and (temperature or temperature != '')):
                     value_4 = float(item_4.text())
                     temperature = float(temperature)
                     pressure = 0.9 * CONSTANTS.ACCELERATION_OF_GRAVITY * value_4 * ((353 / (273 + 5)) - (353 / (273 + temperature)))
                     pressure = "{:.2f}".format(round(pressure, 2))
-                    self.main_table.item(row, 5).setText(pressure)
-                    self.main_table.item(row, 5).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    table.item(row, 5).setText(pressure)
+                    table.item(row, 5).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
-                    self.main_table.setItem(row, 5, QTableWidgetItem())
-                    self.main_table.item(row, 5).setText('')
+                    table.setItem(row, 5, QTableWidgetItem())
+                    table.item(row, 5).setText('')
         else:
             # если изменилась температура воздуха
             temperature = row
-            rows = self.main_table.rowCount()
+            rows = table.rowCount()
             for row in range(rows):
-                item_4 = self.main_table.item(row, 4)
+                item_4 = table.item(row, 4)
                 if item_4.text() != '' and (temperature or temperature != ''):
                     value_4 = float(item_4.text())
                     temperature = float(temperature)
                     pressure = 0.9 * CONSTANTS.ACCELERATION_OF_GRAVITY * value_4 * ((353 / (273 + 5)) - (353 / (273 + temperature)))
                     pressure = "{:.2f}".format(round(pressure, 2))
-                    self.main_table.item(row, 5).setText(pressure)
-                    self.main_table.item(row, 5).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    table.item(row, 5).setText(pressure)
+                    table.item(row, 5).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
-                    self.main_table.setItem(row, 5, QTableWidgetItem())
-                    self.main_table.item(row, 5).setText('')
+                    table.setItem(row, 5, QTableWidgetItem())
+                    table.item(row, 5).setText('')
 
 
     def calculate_klapan_pressure_loss(self, row=False, column=False) -> None:
@@ -675,6 +681,7 @@ class MainWindow(QMainWindow):
 
 
     def _calculate_klapan_pressure_loss(self, klapan_widget_value, hand_klapan_flow, current_klapan_flow) -> None:
+        table = self.sputnik_table
         if hand_klapan_flow or klapan_widget_value == '--':
             klapan_flow = hand_klapan_flow
         else:
@@ -685,93 +692,99 @@ class MainWindow(QMainWindow):
             klapan_flow = int(klapan_flow)
             pressure_loss = 10 * pow(current_klapan_flow / klapan_flow, 2)
             pressure_loss = "{:.2f}".format(round(pressure_loss, 2))
-            self.sputnik_table.item(0, 13).setText(pressure_loss)
-            self.sputnik_table.item(0, 13).setBackground(QColor(153, 255, 255))
+            table.item(0, 13).setText(pressure_loss)
+            table.item(0, 13).setBackground(QColor(153, 255, 255))
         else:
-            self.sputnik_table.item(0, 13).setText('')
-            self.sputnik_table.item(0, 13).setBackground(QColor(255, 255, 255))
+            table.item(0, 13).setText('')
+            table.item(0, 13).setBackground(QColor(255, 255, 255))
 
 
     def calculate_air_velocity(self, row, column) -> None:
+        sputnik_table = self.sputnik_table
+        main_table = self.main_table
         table = self.sender().objectName()
         match table:
             case CONSTANTS.SPUTNIK_TABLE.NAME:
                 columns = (1, 3, 4)
                 if column in columns:
-                    air_flow = self.sputnik_table.item(row, 1).text()
-                    a = self.sputnik_table.item(row, 3).text()
-                    b = self.sputnik_table.item(row, 4).text()
+                    air_flow = sputnik_table.item(row, 1).text()
+                    a = sputnik_table.item(row, 3).text()
+                    b = sputnik_table.item(row, 4).text()
                     if all([air_flow, a, b]):
                         velocity = float(air_flow) / (3_600 * ((float(a) * float(b) / 1_000_000)))
                         velocity = "{:.2f}".format(round(velocity, 2))
-                        self.sputnik_table.item(row, 5).setText(velocity)
+                        sputnik_table.item(row, 5).setText(velocity)
                     elif all([air_flow, a]):
                         velocity = float(air_flow) / (3_600 * (3.1415 * (float(a) / 1_000) * (float(a) / 1_000) / 4))
                         velocity = "{:.2f}".format(round(velocity, 2))
-                        self.sputnik_table.item(row, 5).setText(velocity)
+                        sputnik_table.item(row, 5).setText(velocity)
                     else:
-                        self.sputnik_table.item(row, 5).setText('')
+                        sputnik_table.item(row, 5).setText('')
             case CONSTANTS.MAIN_TABLE.NAME:
                 columns = (3, 10, 11)
                 if column in columns:
-                    air_flow = self.main_table.item(row, 3)
-                    a = self.main_table.item(row, 10)
-                    b = self.main_table.item(row, 11)
+                    air_flow = main_table.item(row, 3)
+                    a = main_table.item(row, 10)
+                    b = main_table.item(row, 11)
                     if all([air_flow is not None, a is not None, b is not None]) and all([air_flow.text() != '', a.text() != '', b.text() != '']):
                         velocity = float(air_flow.text()) / (3_600 * ((float(a.text()) * float(b.text()) / 1_000_000)))
                         velocity = "{:.2f}".format(round(velocity, 2))
-                        self.main_table.item(row, 12).setText(velocity)
-                        self.main_table.item(row, 12).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        main_table.item(row, 12).setText(velocity)
+                        main_table.item(row, 12).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     elif all([air_flow is not None, a is not None]) and all([air_flow.text() != '', a.text() != '']):
                         velocity = float(air_flow.text()) / (3_600 * (3.1415 * (float(a.text()) / 1_000) * (float(a.text()) / 1_000) / 4))
                         velocity = "{:.2f}".format(round(velocity, 2))
-                        self.main_table.item(row, 12).setText(velocity)
-                        self.main_table.item(row, 12).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        main_table.item(row, 12).setText(velocity)
+                        main_table.item(row, 12).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     else:
-                        self.main_table.setItem(row, 12, QTableWidgetItem())
-                        self.main_table.item(row, 12).setText('')
+                        main_table.setItem(row, 12, QTableWidgetItem())
+                        main_table.item(row, 12).setText('')
 
 
     def calculate_diameter(self, row, column) -> None:
+        sputnik_table = self.sputnik_table
+        main_table = self.main_table
         table = self.sender().objectName()
         match table:
             case CONSTANTS.SPUTNIK_TABLE.NAME:
                 columns = (3, 4)
                 if column in columns:
-                    a = self.sputnik_table.item(row, 3).text()
-                    b = self.sputnik_table.item(row, 4).text()
+                    a = sputnik_table.item(row, 3).text()
+                    b = sputnik_table.item(row, 4).text()
                     if all([a, b]):
                         diameter = (2 * float(a) * float(b) / (float(a) + float(b)) / 1_000)
                         diameter = "{:.3f}".format(round(diameter, 3))
-                        self.sputnik_table.item(row, 6).setText(diameter)
-                        self.sputnik_table.item(row, 6).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        sputnik_table.item(row, 6).setText(diameter)
+                        sputnik_table.item(row, 6).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     elif a:
                         diameter = float(a) / 1_000
                         diameter = "{:.3f}".format(round(diameter, 3))
-                        self.sputnik_table.item(row, 6).setText(diameter)
+                        sputnik_table.item(row, 6).setText(diameter)
                     else:
-                        self.sputnik_table.item(row, 6).setText('')
+                        sputnik_table.item(row, 6).setText('')
             case CONSTANTS.MAIN_TABLE.NAME:
                 columns = (10, 11)
                 if column in columns:
-                    a = self.main_table.item(row, 10)
-                    b = self.main_table.item(row, 11)
+                    a = main_table.item(row, 10)
+                    b = main_table.item(row, 11)
                     if all([a is not None, b is not None]) and all([a.text() != '', b.text() != '']):
                         diameter = (2 * float(a.text()) * float(b.text()) / (float(a.text()) + float(b.text())) / 1_000)
                         diameter = "{:.3f}".format(round(diameter, 3))
-                        self.main_table.item(row, 13).setText(diameter)
-                        self.main_table.item(row, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        main_table.item(row, 13).setText(diameter)
+                        main_table.item(row, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     elif a is not None and a.text() != '':
                         diameter = float(a.text()) / 1_000
                         diameter = "{:.3f}".format(round(diameter, 3))
-                        self.main_table.item(row, 13).setText(diameter)
-                        self.main_table.item(row, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        main_table.item(row, 13).setText(diameter)
+                        main_table.item(row, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     else:
-                        self.main_table.setItem(row, 13, QTableWidgetItem())
-                        self.main_table.item(row, 13).setText('')
+                        main_table.setItem(row, 13, QTableWidgetItem())
+                        main_table.item(row, 13).setText('')
 
 
     def calculate_dynamic(self, row=False, column=False) -> None:
+        sputnik_table = self.sputnik_table
+        main_table = self.main_table
         sender = self.sender()
         table = sender.objectName()
         if isinstance(sender, QTableWidget):
@@ -780,66 +793,68 @@ class MainWindow(QMainWindow):
                 case CONSTANTS.SPUTNIK_TABLE.NAME:
                     if column == 5:
                         temperature = self.temperature_widget.text()
-                        velocity = self.sputnik_table.item(row, 5).text()
+                        velocity = sputnik_table.item(row, 5).text()
                         if all([temperature, velocity]):
                             temperature = float(temperature)
                             velocity = float(velocity)
                             density = 353 / (273.15 + temperature)
                             dynamic = velocity * velocity * density / 2
                             dynamic = "{:.2f}".format(round(dynamic, 2))
-                            self.sputnik_table.item(row, 10).setText(dynamic)
+                            sputnik_table.item(row, 10).setText(dynamic)
                         else:
-                            self.sputnik_table.item(row, 10).setText('')
-                            self.sputnik_table.item(row, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            sputnik_table.item(row, 10).setText('')
+                            sputnik_table.item(row, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 case CONSTANTS.MAIN_TABLE.NAME:
                     if column == 12:
                         temperature = self.temperature_widget.text()
-                        velocity = self.main_table.item(row, 12).text()
+                        velocity = main_table.item(row, 12).text()
                         if all([temperature, velocity]):
                             temperature = float(temperature)
                             velocity = float(velocity)
                             density = 353 / (273.15 + temperature)
                             dynamic = velocity * velocity * density / 2
                             dynamic = "{:.2f}".format(round(dynamic, 2))
-                            self.main_table.item(row, 17).setText(dynamic)
-                            self.main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            main_table.item(row, 17).setText(dynamic)
+                            main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                         else:
-                            self.main_table.setItem(row, 17, QTableWidgetItem())
-                            self.main_table.item(row, 17).setText('')
-                            self.main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                            main_table.setItem(row, 17, QTableWidgetItem())
+                            main_table.item(row, 17).setText('')
+                            main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         else:
             # если изменилась температура воздуха
             temperature = row
             rows_sputnik = (1, 3)
             for row in rows_sputnik:
-                velocity = self.sputnik_table.item(row, 5).text()
+                velocity = sputnik_table.item(row, 5).text()
                 if all([temperature, velocity]):
                     temperature = float(temperature)
                     velocity = float(velocity)
                     density = 353 / (273.15 + temperature)
                     dynamic = velocity * velocity * density / 2
                     dynamic = "{:.2f}".format(round(dynamic, 2))
-                    self.sputnik_table.item(row, 10).setText(dynamic)
-                    self.sputnik_table.item(row, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    sputnik_table.item(row, 10).setText(dynamic)
+                    sputnik_table.item(row, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
-                    self.sputnik_table.item(row, 10).setText('')
+                    sputnik_table.item(row, 10).setText('')
 
-            rows_main = self.main_table.rowCount()
+            rows_main = main_table.rowCount()
             for row in range(rows_main):
-                velocity = self.main_table.item(row, 12).text()
+                velocity = main_table.item(row, 12).text()
                 if all([temperature, velocity]):
                     temperature = float(temperature)
                     velocity = float(velocity)
                     density = 353 / (273.15 + temperature)
                     dynamic = velocity * velocity * density / 2
                     dynamic = "{:.2f}".format(round(dynamic, 2))
-                    self.main_table.item(row, 17).setText(dynamic)
+                    main_table.item(row, 17).setText(dynamic)
                 else:
-                    self.main_table.item(row, 17).setText('')
-                    self.main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    main_table.item(row, 17).setText('')
+                    main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
     def calculate_specific_pressure_loss(self, row=False, column=False) -> None:
+        sputnik_table = self.sputnik_table
+        main_table = self.main_table
         sender = self.sender()
         name = sender.objectName()
         if isinstance(sender, QTableWidget):
@@ -848,9 +863,9 @@ class MainWindow(QMainWindow):
                     if column in (6, 10):
                         temperature = self.temperature_widget.text()
                         surface = self.surface_widget.text()
-                        velocity = self.sputnik_table.item(row, 5).text()
-                        diameter = self.sputnik_table.item(row, 6).text()
-                        dynamic = self.sputnik_table.item(row, 10)
+                        velocity = sputnik_table.item(row, 5).text()
+                        diameter = sputnik_table.item(row, 6).text()
+                        dynamic = sputnik_table.item(row, 10)
                         if all([temperature, diameter, velocity, surface, dynamic]):
                             try:
                                 temperature = float(temperature)
@@ -865,18 +880,18 @@ class MainWindow(QMainWindow):
                                 lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
                                 resistivity = (lam / diameter) * dynamic
                                 resistivity = "{:.4f}".format(round(resistivity, 4))
-                                self.sputnik_table.item(row, 7).setText(resistivity)
+                                sputnik_table.item(row, 7).setText(resistivity)
                             except ZeroDivisionError:
-                                self.sputnik_table.item(row, 7).setText('')
+                                sputnik_table.item(row, 7).setText('')
                         else:
-                            self.sputnik_table.item(row, 7).setText('')
+                            sputnik_table.item(row, 7).setText('')
                 case CONSTANTS.MAIN_TABLE.NAME:
                     if column in (13, 17):
                         temperature = self.temperature_widget.text()
                         surface = self.surface_widget.text()
-                        velocity = self.main_table.item(row, 12)
-                        diameter = self.main_table.item(row, 13)
-                        dynamic = self.main_table.item(row, 17)
+                        velocity = main_table.item(row, 12)
+                        diameter = main_table.item(row, 13)
+                        dynamic = main_table.item(row, 17)
                         if all([temperature, diameter, velocity, surface, dynamic]) and all([temperature != '', diameter.text() != '', velocity.text() != '', surface != '', dynamic.text() != '']):
                             temperature = float(temperature)
                             surface = float(surface)
@@ -891,24 +906,24 @@ class MainWindow(QMainWindow):
                                 lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
                                 resistivity = (lam / diameter) * dynamic
                                 resistivity = "{:.4f}".format(round(resistivity, 4))
-                                self.main_table.item(row, 14).setText(resistivity)
-                                self.main_table.item(row, 14).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                                main_table.item(row, 14).setText(resistivity)
+                                main_table.item(row, 14).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                             except ZeroDivisionError:
                                 QMessageBox.warning(None, 'Внимание', 'This is a warning message')
-                                self.main_table.setItem(row, 14, QTableWidgetItem())
-                                self.main_table.item(row, 14).setText('')
+                                main_table.setItem(row, 14, QTableWidgetItem())
+                                main_table.item(row, 14).setText('')
                         else:
-                            self.main_table.setItem(row, 14, QTableWidgetItem())
-                            self.main_table.item(row, 14).setText('')
+                            main_table.setItem(row, 14, QTableWidgetItem())
+                            main_table.item(row, 14).setText('')
         elif isinstance(sender, QLineEdit) and name == 'surface':
             # если изменилась шероховатость
             surface = row
             rows_sputnik = (1, 3)
             for row in rows_sputnik:
                 temperature = self.temperature_widget.text()
-                velocity = self.sputnik_table.item(row, 5).text()
-                diameter = self.sputnik_table.item(row, 6).text()
-                dynamic = self.sputnik_table.item(row, 10).text()
+                velocity = sputnik_table.item(row, 5).text()
+                diameter = sputnik_table.item(row, 6).text()
+                dynamic = sputnik_table.item(row, 10).text()
                 if all([temperature, diameter, velocity, surface, dynamic]):
                     temperature = float(temperature)
                     velocity = float(velocity)
@@ -922,16 +937,16 @@ class MainWindow(QMainWindow):
                     lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
                     resistivity = (lam / diameter) * dynamic
                     resistivity = "{:.4f}".format(round(resistivity, 4))
-                    self.sputnik_table.item(row, 7).setText(resistivity)
+                    sputnik_table.item(row, 7).setText(resistivity)
                 else:
-                    self.sputnik_table.item(row, 7).setText('')
+                    sputnik_table.item(row, 7).setText('')
 
-            rows_main = self.main_table.rowCount()
+            rows_main = main_table.rowCount()
             for row in range(rows_main):
                 temperature = self.temperature_widget.text()
-                velocity = self.main_table.item(row, 12).text()
-                diameter = self.main_table.item(row, 13).text()
-                dynamic = self.main_table.item(row, 17).text()
+                velocity = main_table.item(row, 12).text()
+                diameter = main_table.item(row, 13).text()
+                dynamic = main_table.item(row, 17).text()
                 if all([temperature, diameter, velocity, surface, dynamic]):
                     temperature = float(temperature)
                     velocity = float(velocity)
@@ -945,10 +960,10 @@ class MainWindow(QMainWindow):
                     lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
                     resistivity = (lam / diameter) * dynamic
                     resistivity = "{:.4f}".format(round(resistivity, 4))
-                    self.main_table.item(row, 14).setText(resistivity)
-                    self.main_table.item(row, 14).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    main_table.item(row, 14).setText(resistivity)
+                    main_table.item(row, 14).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
-                    self.main_table.item(row, 14).setText('')
+                    main_table.item(row, 14).setText('')
 
 
     def uncheck_radio_button_1(self) -> None:
@@ -1063,6 +1078,8 @@ class MainWindow(QMainWindow):
 
 
     def calculate_m(self, row, column) -> None:
+        main_table = self.main_table
+        sputnik_table = self.sputnik_table
         table = self.sender().objectName()
         axis_x = CONSTANTS.REFERENCE_DATA.M.X
         axis_y = CONSTANTS.REFERENCE_DATA.M.Y
@@ -1071,75 +1088,77 @@ class MainWindow(QMainWindow):
         match table:
             case CONSTANTS.SPUTNIK_TABLE.NAME:
                 if column in (3, 4):
-                    a = self.sputnik_table.item(row, 3).text()
-                    b = self.sputnik_table.item(row, 4).text()
+                    a = sputnik_table.item(row, 3).text()
+                    b = sputnik_table.item(row, 4).text()
                     if all([a, b]) and all([100 <= int(a) <= 1_500, 100 <= int(b) <= 1_500]):
                         a, b = int(a), int(b)
                         m = interpolator((b, a))
                         m = "{:.3f}".format(around(m, 3))
-                        self.sputnik_table.item(row, 8).setText(m)
+                        sputnik_table.item(row, 8).setText(m)
                     elif a and 100 <= int(a) <= 1_500:
                         a = int(a)
                         m = interpolator((a, a))
                         m = "{:.3f}".format(around(m, 3))
-                        self.sputnik_table.item(row, 8).setText(m)
+                        sputnik_table.item(row, 8).setText(m)
                     else:
-                        self.sputnik_table.item(row, 8).setText('')
+                        sputnik_table.item(row, 8).setText('')
             case CONSTANTS.MAIN_TABLE.NAME:
                 if column in (10, 11):
-                    a = self.main_table.item(row, 10)
-                    b = self.main_table.item(row, 11)
+                    a = main_table.item(row, 10)
+                    b = main_table.item(row, 11)
                     if all([a, b]) and all([a.text() != '', b.text() != '']) and all([100 <= int(a.text()) <= 1_500, 100 <= int(b.text()) <= 1_500]):
                         a, b = int(a.text()), int(b.text())
                         m = interpolator((b, a))
                         m = "{:.3f}".format(around(m, 3))
-                        self.main_table.setItem(row, 15, QTableWidgetItem())
-                        self.main_table.item(row, 15).setText(m)
-                        self.main_table.item(row, 15).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        main_table.setItem(row, 15, QTableWidgetItem())
+                        main_table.item(row, 15).setText(m)
+                        main_table.item(row, 15).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     elif a and a.text() != '' and 100 <= int(a.text()) <= 1_500:
                         a = int(a.text())
                         m = interpolator((a, a))
                         m = "{:.3f}".format(around(m, 3))
-                        self.main_table.setItem(row, 15, QTableWidgetItem())
-                        self.main_table.item(row, 15).setText(m)
-                        self.main_table.item(row, 15).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        main_table.setItem(row, 15, QTableWidgetItem())
+                        main_table.item(row, 15).setText(m)
+                        main_table.item(row, 15).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     else:
-                        self.main_table.setItem(row, 15, QTableWidgetItem())
-                        self.main_table.item(row, 15).setText('')
+                        main_table.setItem(row, 15, QTableWidgetItem())
+                        main_table.item(row, 15).setText('')
 
 
     def calculate_linear_pressure_loss(self, row, column) -> None:
+        main_table = self.main_table
+        sputnik_table = self.sputnik_table
         table = self.sender().objectName()
         match table:
             case CONSTANTS.SPUTNIK_TABLE.NAME:
                 if column in (2, 7, 8):
-                    l = self.sputnik_table.item(row, 2).text()
-                    r = self.sputnik_table.item(row, 7).text()
-                    m = self.sputnik_table.item(row, 8).text()
+                    l = sputnik_table.item(row, 2).text()
+                    r = sputnik_table.item(row, 7).text()
+                    m = sputnik_table.item(row, 8).text()
                     if all([l, r, m]):
                         l = float(l)
                         r = float(r)
                         m = float(m)
                         result = "{:.4f}".format(round(l * r * m, 4))
-                        self.sputnik_table.item(row, 9).setText(result)
+                        sputnik_table.item(row, 9).setText(result)
                     else:
-                        self.sputnik_table.item(row, 9).setText('')
+                        sputnik_table.item(row, 9).setText('')
             case CONSTANTS.MAIN_TABLE.NAME:
                 if column in (1, 14, 15):
-                    l = self.main_table.item(row, 1)
-                    r = self.main_table.item(row, 14)
-                    m = self.main_table.item(row, 15)
+                    l = main_table.item(row, 1)
+                    r = main_table.item(row, 14)
+                    m = main_table.item(row, 15)
                     if all([l, r, m]) and all([l.text() != '', r.text() != '', m.text() != '']):
                         l = float(l.text())
                         r = float(r.text())
                         m = float(m.text())
                         result = "{:.4f}".format(round(l * r * m, 4))
-                        self.main_table.setItem(row, 16, QTableWidgetItem())
-                        self.main_table.item(row, 16).setText(result)
-                        self.main_table.item(row, 16).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        main_table.setItem(row, 16, QTableWidgetItem())
+                        main_table.item(row, 16).setText(result)
+                        main_table.item(row, 16).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     else:
-                        self.main_table.setItem(row, 16, QTableWidgetItem())
-                        self.main_table.item(row, 16).setText('')
+                        main_table.setItem(row, 16, QTableWidgetItem())
+                        main_table.item(row, 16).setText('')
 
 
     def calculate_local_pressure_loss(self, row, column) -> None:
@@ -1213,15 +1232,16 @@ class MainWindow(QMainWindow):
 
 
     def _calculate_kms_by_radiobutton(self, flow, a, b, num_rows=False) -> None:
+        main_table = self.main_table
         sputnik_a, sputnik_b = a, b
         if all([flow, sputnik_a, sputnik_b]):
             sputnik_flow = float(flow)
             sputnik_a, sputnik_b = int(sputnik_a), int(sputnik_b)
-            num_rows = self.main_table.rowCount()
+            num_rows = main_table.rowCount()
             for row in range(0, num_rows-1):
-                floor_flow = self.main_table.item(row+1, 3)
-                main_a = self.main_table.item(row, 10)
-                main_b = self.main_table.item(row, 11)
+                floor_flow = main_table.item(row+1, 3)
+                main_a = main_table.item(row, 10)
+                main_b = main_table.item(row, 11)
                 if not main_b or main_b.text() == '':
                     main_b = main_a
 
@@ -1243,26 +1263,26 @@ class MainWindow(QMainWindow):
                         y_f = 0.1
 
                     pass_kms = self._interpol_kms(x_l, y_f, type='pass_kms')
-                    self.main_table.setItem(row, 8, QTableWidgetItem())
-                    self.main_table.item(row, 8).setText(pass_kms)
-                    self.main_table.item(row, 8).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    main_table.setItem(row, 8, QTableWidgetItem())
+                    main_table.item(row, 8).setText(pass_kms)
+                    main_table.item(row, 8).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
                     branch_kms = self._interpol_kms(x_l, y_f, type='branch_kms')
-                    self.main_table.setItem(row, 9, QTableWidgetItem())
-                    self.main_table.item(row, 9).setText(branch_kms)
-                    self.main_table.item(row, 9).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    main_table.setItem(row, 9, QTableWidgetItem())
+                    main_table.item(row, 9).setText(branch_kms)
+                    main_table.item(row, 9).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
-                    self.main_table.setItem(row, 8, QTableWidgetItem())
-                    self.main_table.setItem(row, 9, QTableWidgetItem())
-                    self.main_table.item(row, 8).setText('')
-                    self.main_table.item(row, 9).setText('')
+                    main_table.setItem(row, 8, QTableWidgetItem())
+                    main_table.setItem(row, 9, QTableWidgetItem())
+                    main_table.item(row, 8).setText('')
+                    main_table.item(row, 9).setText('')
         else:
-            num_rows = self.main_table.rowCount()
+            num_rows = main_table.rowCount()
             for row in range(0, num_rows-1):
-                self.main_table.setItem(row, 8, QTableWidgetItem())
-                self.main_table.setItem(row, 9, QTableWidgetItem())
-                self.main_table.item(row, 8).setText('')
-                self.main_table.item(row, 9).setText('')
+                main_table.setItem(row, 8, QTableWidgetItem())
+                main_table.setItem(row, 9, QTableWidgetItem())
+                main_table.item(row, 8).setText('')
+                main_table.item(row, 9).setText('')
 
 
     def _interpol_kms(self, x_l, y_f, type) -> str:
