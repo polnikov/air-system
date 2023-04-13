@@ -13,3 +13,8 @@
 ![Main tab](/docs/img/main_tab.jpg)
 
 ![Second tab](/docs/img/second_tab.jpg)
+
+### **Example**
+![Main tab example](/docs/img/main_tab_example.jpg)
+
+![Second tab example](/docs/img/second_tab_example.jpg)
