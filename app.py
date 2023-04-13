@@ -75,7 +75,6 @@ class MainWindow(QMainWindow):
         _layout.addLayout(_hbox2)
         _layout.addLayout(_hbox3)
         _widget.setLayout(_layout)
-
         return _widget
 
 
@@ -428,7 +427,6 @@ class MainWindow(QMainWindow):
                 for row in range(num_rows):
                     _table.item(row, col).setBackground(QColor(229, 255, 204))
 
-        # self.main_table.setSpan(0, 6, 0, 0)
         _table.setColumnHidden(6, True)
         self._clean_for_last_floor()
 
@@ -537,27 +535,12 @@ class MainWindow(QMainWindow):
             table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
             table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # # установка расхода воздуха
-        # init_flow = table.item(0, 3)
-        # last_flow = table.item(num_rows-2, 3)
-        # if all([init_flow is not None, last_flow is not None]) and all([init_flow.text() != '', last_flow.text() != '']):
-        #     flow = int(init_flow.text()) + int(last_flow.text())
-        #     flow = str(flow)
-        #     table.setItem(num_rows-2, 3, QTableWidgetItem())
-        #     table.item(num_rows-2, 3).setText(flow)
-        #     table.item(num_rows-2, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        #     table.setItem(num_rows-1, 3, QTableWidgetItem())
-        #     table.item(num_rows-1, 3).setText(init_flow.text())
-        #     table.item(num_rows-1, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
         self.update_air_flow_column_in_main_table_after_add_row()
 
         if self.main_table_box.height() < 600:
             self.main_table_box.setFixedHeight(self.main_table_box.height() + 30)
 
         self._clean_for_last_floor()
-        # self.set_row_columns_in_not_editable_mode(num_rows)
 
 
     def set_floor_number_in_main_table(self) -> None:
@@ -576,17 +559,6 @@ class MainWindow(QMainWindow):
         klapan_flow = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(value)
         self.klapan_air_flow_label.setText(f'{klapan_flow} м<sup>3</sup>/ч')
         # self.sputnik_table.item(0, 0).setText(value)
-
-
-    # def set_row_columns_in_not_editable_mode(self, row) -> None:
-    #     columns = (0, 1, 2, 10, 11)
-    #     num_cols = self.main_table.columnCount()
-    #     for col in range(num_cols):
-    #         if col not in columns:
-    #             if self.main_table.item(row, col) is not None:
-    #                 # self.main_table.setItem(row, col, QTableWidgetItem())
-    #                 item = self.main_table.item(row, col)
-    #                 item.setFlags(item.flags() ^ Qt.ItemFlag.ItemIsEditable)
 
 
     def update_result(self, row, column) -> None:
@@ -1395,19 +1367,6 @@ class MainWindow(QMainWindow):
                 self.sputnik_table.item(4, 13).setBackground(QColor(255, 255, 255))
 
 
-    # def set_channel_height_in_main_table(self) -> None:
-    #     height = self.channel_height_widget.text()
-    #     if height != '':
-    #         height = str(float(height))
-    #         self.main_table.setItem(0, 4, QTableWidgetItem())
-    #         self.main_table.item(0, 4).setText(height)
-    #         self.main_table.item(0, 4).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    #         # self.fill_height_column_in_main_table()
-    #     else:
-    #         self.main_table.setItem(0, 4, QTableWidgetItem())
-    #         self.main_table.item(0, 4).setText('')
-
-
     def set_base_floor_height_in_main_table(self) -> None:
         num_rows = self.main_table.rowCount()
         base_floor_height = self.floor_height_widget.text()
@@ -1937,50 +1896,6 @@ class MainWindow(QMainWindow):
             self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
 
 
-    # def set_sputnik_dimensions_in_last_table_by_radiobutton_1(self, checked) -> None:
-    #     if checked:
-    #         self.radio_button2.setChecked(False)
-    #         sputnik_a = self.sputnik_table.item(1, 3).text()
-    #         sputnik_b = self.sputnik_table.item(1, 4).text()
-    #         self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_a, sputnik_b)
-
-
-    # def set_sputnik_dimensions_in_last_table_by_radiobutton_2(self, checked) -> None:
-    #     if checked:
-    #         self.radio_button1.setChecked(False)
-    #         sputnik_a = self.sputnik_table.item(3, 3).text()
-    #         sputnik_b = self.sputnik_table.item(3, 4).text()
-    #         self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_a, sputnik_b)
-
-
-    # def _set_sputnik_dimensions_in_last_table_by_radiobutton(self, a, b) -> None:
-    #     if a:
-    #         self.last_floor_table.item(0, 10).setText(a)
-    #         self.last_floor_table.item(0, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    #     else:
-    #         self.last_floor_table.item(0, 10).setText('')
-
-    #     if b:
-    #         self.last_floor_table.item(0, 11).setText(b)
-    #         self.last_floor_table.item(0, 11).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    #     else:
-    #         self.last_floor_table.item(0, 11).setText('')
-
-
-    # def set_sputnik_dimensions_in_last_table(self, row, column) -> None:
-    #     dimensions_cells = ((1, 3), (1, 4), (3, 3), (3, 4))
-    #     sputnik_1_a = self.sputnik_table.item(1, 3).text()
-    #     sputnik_1_b = self.sputnik_table.item(1, 4).text()
-    #     sputnik_2_a = self.sputnik_table.item(3, 3).text()
-    #     sputnik_2_b = self.sputnik_table.item(3, 4).text()
-
-    #     if (row, column) in dimensions_cells:
-    #         if self.radio_button1.isChecked():
-    #             self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_1_a, sputnik_1_b)
-    #         elif self.radio_button2.isChecked():
-    #             self._set_sputnik_dimensions_in_last_table_by_radiobutton(sputnik_2_a, sputnik_2_b)
-
-
     def _clean_for_last_floor(self) -> None:
         table = self.main_table
         num_rows = table.rowCount()
@@ -1999,7 +1914,8 @@ class MainWindow(QMainWindow):
         table = self.main_table
         last_row = table.rowCount() - 1
         column = item.column()
-        if column in (8, 9):
+        row = item.row()
+        if column in (8, 9) and row == last_row:
             # Allows values: 0...100 with or without one | two digit after separator
             pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
             if not re.match(pattern, item.text()):
