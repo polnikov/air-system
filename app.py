@@ -391,6 +391,7 @@ class MainWindow(QMainWindow):
         _table.horizontalHeader().setStretchLastSection(True)
         _table.setHorizontalHeaderLabels(CONSTANTS.MAIN_TABLE.HEADER)
         _table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
+        _table.horizontalHeaderItem(4).setToolTip(CONSTANTS.MAIN_TABLE.TOOLTIP_L)
         _table.setStyleSheet("QTableWidget { border: 2px solid grey; }")
         _table.verticalHeader().setVisible(False)
         _table.setObjectName(CONSTANTS.MAIN_TABLE.NAME)
