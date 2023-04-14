@@ -4,7 +4,7 @@
 
 ### **Main stack:**
 - Python 3.10.6
-- PyQt6 6.4.2
+- PyQSide 6.5.0
 - scipy 1.10.1
 - numpy 1.24.2
 - pyinstaller 5.9.0
