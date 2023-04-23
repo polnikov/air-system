@@ -2,6 +2,7 @@ import os
 import platform
 import re
 import math
+import time
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
@@ -26,6 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QTabWidget,
     QTableWidgetItem,
+    QProgressDialog,
 )
 
 from constants import CONSTANTS
@@ -36,23 +38,39 @@ basedir = os.path.dirname(__file__)
 
 try:
     from ctypes import windll  # Only exists on Windows.
-    myappid = 'akudjatechnology.air-system.1.0.0'
+    myappid = 'akudjatechnology.air-system'
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
+
+version = '1.0.0'
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(CONSTANTS.APP_TITLE)
+        self.app_title = f'{CONSTANTS.APP_TITLE}_v{version}'
+        self.setWindowTitle(self.app_title)
         self.box_style = "QGroupBox::title {color: blue;}"
+        self.table_style = '''
+            QTableWidget {
+                font-family: Consolas;
+                font-size: 13px;
+            }
+            QHeaderView {
+                font-family: Consolas;
+                font-size: 13px;
+            }
+            QHeaderView::section {
+                background-color: #F3F3F3
+            }
+        '''
 
         menubar = self.menuBar()
         help_action = QAction("Руководство", self)
         menubar.addAction(help_action)
         menubar.triggered.connect(self.open_manual)
-        menubar.setStyleSheet("background-color: #E0E0E0")
+        menubar.setStyleSheet("background-color: #E0E0E0; font-family: Consolas; font-size: 13px; color: blue")
 
         self.tab_widget = QTabWidget(self)
         self.setCentralWidget(self.tab_widget)
@@ -62,17 +80,12 @@ class MainWindow(QMainWindow):
         self.showMaximized()
 
 
-    def open_manual(self):
-        if platform.system() == "Windows":
-            os.startfile(os.path.join(basedir, 'natural_air_system_manual.pdf'))
-            
-
-
     def create_tab1_content(self) -> object:
         _widget = QWidget()
         _layout = QVBoxLayout()
 
         _hbox1 = QHBoxLayout()
+        # _hbox1.setContentsMargins(0, 0, 0, 0)
         _hbox1.addWidget(self.create_init_data_box())
         _hbox1.addWidget(self.create_sputnik_table_box())
 
@@ -81,6 +94,7 @@ class MainWindow(QMainWindow):
         _hbox2.addWidget(self.create_buttons_box())
         
         _hbox3 = QVBoxLayout()
+        _hbox3.setContentsMargins(1, 1, 1, 1)
         _hbox3.addWidget(self.create_main_table_box())
         _hbox3.setAlignment(self.main_table_box, Qt.AlignmentFlag.AlignTop)
 
@@ -97,8 +111,7 @@ class MainWindow(QMainWindow):
         _widget = QWidget()
         _layout = QVBoxLayout()
         _hbox1 = QHBoxLayout()
-        _hbox1.addWidget(self.create_deflector_calculation())
-
+        _hbox1.addWidget(self.create_deflector_calculation(), alignment=(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft))
         _layout.addLayout(_hbox1)
         _widget.setLayout(_layout)
         return _widget
@@ -120,7 +133,7 @@ class MainWindow(QMainWindow):
             label_0.setFixedWidth(320)
             line_edit = QLineEdit()
             line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            line_edit.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
+            line_edit.setStyleSheet('QLineEdit {background-color: #E5FFCC }')
             line_edit.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
             line_edit.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
             label_1 = QLabel(labels[i][1])
@@ -168,7 +181,7 @@ class MainWindow(QMainWindow):
         klapan_label = QLabel(CONSTANTS.INIT_DATA.KLAPAN_LABEL)
         self.klapan_widget = QComboBox()
         klapan_widget = self.klapan_widget
-        klapan_widget.setStyleSheet('QComboBox { background-color: %s}' % QColor(229, 255, 204).name())
+        klapan_widget.setStyleSheet('QComboBox { background-color: #E5FFCC } QAbstractItemView { background-color: #E5FFCC }')
         klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
         klapan_widget.setFixedWidth(170)
@@ -188,7 +201,7 @@ class MainWindow(QMainWindow):
         klapan_input.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
         klapan_input.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         klapan_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
+        klapan_input.setStyleSheet('QLineEdit {background-color: #E0E0E0 }')
         klapan_input.setDisabled(True)
         klapan_input_regex = QRegularExpression("^(?:[1-9]|[1-9]\d|100)(?:)?$")
         klapan_input_validator = QRegularExpressionValidator(klapan_input_regex)
@@ -236,23 +249,16 @@ class MainWindow(QMainWindow):
         add_row_button = self.add_row_button
         add_row_button.setText(CONSTANTS.BUTTONS.ADD_BUTTON_TITLE)
         add_row_button.setStyleSheet('QPushButton:hover {background-color: rgb(102, 204, 0)}')
-        # add_icon = QIcon('add_row.png')
-        # self.add_row_button.setIcon(add_icon)
-        # self.add_row_button.setIconSize(QSize(25, 25))
         add_row_button.setToolTip(CONSTANTS.BUTTONS.ADD_BUTTON_TOOLTIP)
         _layout.addWidget(add_row_button)
         add_row_button.clicked.connect(self.add_row)
         add_row_button.clicked.connect(self.set_floor_number_in_main_table)
         add_row_button.clicked.connect(self._join_deflector_column_cells_in_main_table)
-        # self.add_row_button.clicked.connect(self._set_deflector_pressure_in_main_table)
 
         self.delete_row_button = QPushButton()
         delete_row_button = self.delete_row_button
         delete_row_button.setText(CONSTANTS.BUTTONS.DELETE_BUTTON_TITLE)
         delete_row_button.setStyleSheet('QPushButton:hover {background-color: rgb(255, 153, 153)}')
-        # delete_icon = QIcon('delete_row.png')
-        # self.delete_row_button.setIcon(delete_icon)
-        # self.delete_row_button.setIconSize(QSize(25, 25))
         delete_row_button.setToolTip(CONSTANTS.BUTTONS.DELETE_BUTTON_TOOLTIP)
         _layout.addWidget(delete_row_button)
         delete_row_button.clicked.connect(self.delete_row)
@@ -276,8 +282,7 @@ class MainWindow(QMainWindow):
         _table = self.sputnik_table
         _table.verticalHeader().setVisible(False)
         _table.horizontalHeader().setStretchLastSection(True)
-        _table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
-        _table.setStyleSheet("QTableWidget { border: 2px solid grey; }")
+        _table.setStyleSheet(self.table_style)
         _table.setHorizontalHeaderLabels(CONSTANTS.SPUTNIK_TABLE.HEADER)
         _table.setObjectName(CONSTANTS.SPUTNIK_TABLE.NAME)
 
@@ -405,9 +410,8 @@ class MainWindow(QMainWindow):
         _table = self.main_table
         _table.horizontalHeader().setStretchLastSection(True)
         _table.setHorizontalHeaderLabels(CONSTANTS.MAIN_TABLE.HEADER)
-        _table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
         _table.horizontalHeaderItem(4).setToolTip(CONSTANTS.MAIN_TABLE.TOOLTIP_L)
-        _table.setStyleSheet("QTableWidget { border: 2px solid grey; }")
+        _table.setStyleSheet(self.table_style)
         _table.verticalHeader().setVisible(False)
         _table.setObjectName(CONSTANTS.MAIN_TABLE.NAME)
 
@@ -475,16 +479,23 @@ class MainWindow(QMainWindow):
         return _box
 
 
+    def open_manual(self):
+        if platform.system() == "Windows":
+            os.startfile(os.path.join(basedir, 'natural_air_system_manual.pdf'))
+
+
     def validate_input_data_in_tables(self, item) -> None:
         table = self.sender().objectName()
         column = item.column()
-        # Allows values: whole numbers 0...2000
-        dimensions_pattern = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
-        # Allows values: 0...100 with or without one | two digit after separator
-        length_height_kms_pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
-        match table:
-            case 'sputnik':
-                if column in (1, 2, 3, 4, 11):
+        if (table == 'sputnik' and column in (1, 2, 3, 4, 11)) or (table == 'main' and column in (1, 8, 9, 10, 11)):
+            # Allows values: whole numbers 0...2000
+            dimensions_pattern = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
+            # Allows values: 0...100 with or without one | two digit after separator
+            length_height_kms_pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
+            # Allows values: 0...100 with or without one | two digit after separator
+            kms_pattern = r'^-?(0\.\d*[1-9]|[1-9]\d*(\.\d+)?|1\.\d*[0-9]+)$'
+            match table:
+                case 'sputnik':
                     match column:
                         case 1:
                             # Allows values: 0...200 with or without one digit after separator
@@ -499,11 +510,12 @@ class MainWindow(QMainWindow):
                     else:
                         item.setText(item.text())
 
-            case 'main':
-                if column in (1, 10, 11):
+                case 'main':
                     match column:
                         case 1:
                             pattern = length_height_kms_pattern
+                        case 8 | 9:
+                            pattern = kms_pattern
                         case 10 | 11:
                             pattern = dimensions_pattern
 
@@ -513,38 +525,32 @@ class MainWindow(QMainWindow):
                         item.setText(item.text())
 
 
-    def delete_row(self) -> None:
-        table = self.main_table
-        num_rows = table.rowCount()
-        if num_rows > 2:
-            selected_row = table.currentRow()
-            table.removeRow(selected_row)
-
-            if num_rows < 15:
-                self.main_table_box.setFixedHeight(self.main_table_box.height() - 30)
-
-            self._clean_for_last_floor()
-            init_flow = table.item(0, 3).text()
-            self.fill_air_flow_column_in_main_table(init_flow)
-
-
     def add_row(self) -> None:
+        progress = QProgressDialog("Добавление строки...", None, 0, 100, self)
+        progress.setWindowTitle("Подождите...жуём")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        progress.setMaximum(100)
+        progress.show()
+
         table = self.main_table
         num_rows = table.rowCount()
-        num_cols = table.columnCount()
         table.insertRow(num_rows)
-
         green_cols = (1, 2, 10, 11)
-        # добавление виджета в расчетные ячейки
-        for col in range(num_cols):
-            if col not in green_cols or col not in (0, 3):
-                table.setItem(num_rows, col, QTableWidgetItem())
 
         # заливка зеленым ячеек для ввода
         for col in green_cols:
-            table.setItem(num_rows, col, QTableWidgetItem())
-            table.item(num_rows, col).setBackground(QColor(229, 255, 204))
-            table.item(num_rows, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            item = table.item(num_rows, col)
+            if item is not None:
+                item.setBackground(QColor(229, 255, 204))
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            else:
+                green_item = QTableWidgetItem()
+                green_item.setBackground(QColor(229, 255, 204))
+                green_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                table.setItem(num_rows, col, green_item)
+            progress.setValue(progress.value() + 10)
 
         # вставка высоты этажа
         if self.floor_height_widget.text() != '':
@@ -557,6 +563,45 @@ class MainWindow(QMainWindow):
             self.main_table_box.setFixedHeight(self.main_table_box.height() + 30)
 
         self._clean_for_last_floor()
+        progress.close()
+
+
+    def delete_row(self) -> None:
+        table = self.main_table
+        selected_row = table.currentRow()
+        num_rows = table.rowCount()
+        if num_rows > 2 or selected_row != 0:
+            table.removeRow(selected_row)
+
+            if num_rows < 15:
+                self.main_table_box.setFixedHeight(self.main_table_box.height() - 30)
+
+            start = time.time()
+            self._clean_for_last_floor()
+            end = time.time() - start
+            print(f"|---> stop 1: {end}")
+
+
+
+            init_flow = table.item(0, 3).text()
+            start = time.time()
+            self.fill_air_flow_column_in_main_table(init_flow)
+            end = time.time() - start
+            print(f"|---> stop 2: {end}")
+
+
+
+            self._fill_height_column_in_main_table(num_rows)
+
+
+    def uncheck_radio_button_1(self) -> None:
+        self.radio_button2.setChecked(True)
+        self.radio_button1.setChecked(False)
+
+
+    def uncheck_radio_button_2(self) -> None:
+        self.radio_button1.setChecked(True)
+        self.radio_button2.setChecked(False)
 
 
     def set_floor_number_in_main_table(self) -> None:
@@ -564,6 +609,7 @@ class MainWindow(QMainWindow):
         num_rows = table.rowCount()
         for row in range(num_rows):
             if row == num_rows-1:
+                table.setItem(row, 0, QTableWidgetItem())
                 table.item(row, 0).setBackground(QColor(255, 204, 204))
             else:
                 table.item(row, 0).setBackground(QColor(255, 255, 255))
@@ -574,7 +620,95 @@ class MainWindow(QMainWindow):
     def set_klapan_air_flow_in_label(self, value) -> None:
         klapan_flow = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(value)
         self.klapan_air_flow_label.setText(f'{klapan_flow} м<sup>3</sup>/ч')
-        # self.sputnik_table.item(0, 0).setText(value)
+
+
+    def set_sputnik_airflow_in_main_table_by_radiobutton_1(self, checked) -> None:
+        if checked:
+            one_side_flow = self.sputnik_table.item(1, 1).text()
+
+            if one_side_flow:
+                self.main_table.item(0, 3).setText(str(int(one_side_flow)))
+                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
+                self.fill_air_flow_column_in_main_table(one_side_flow)
+            else:
+                self.main_table.item(0, 3).setText('')
+                self.clean_air_flow_column_in_main_table()
+
+
+    def set_sputnik_airflow_in_main_table_by_radiobutton_2(self, checked) -> None:
+        if checked:
+            one_side_flow = self.sputnik_table.item(1, 1).text()
+            two_side_flow = self.sputnik_table.item(3, 1).text()
+
+            if all([one_side_flow, two_side_flow]):
+                flow = int(one_side_flow) + int(two_side_flow)
+                self.main_table.item(0, 3).setText(str(flow))
+                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
+                self.fill_air_flow_column_in_main_table(flow)
+            else:
+                self.main_table.item(0, 3).setText('')
+                self.clean_air_flow_column_in_main_table()
+
+
+    def set_sputnik_airflow_in_main_table(self, row, column) -> None:
+        flows_cells = ((1, 1), (3, 1))
+        one_side_flow = self.sputnik_table.item(1, 1).text()
+        two_side_flow = self.sputnik_table.item(3, 1).text()
+
+        if (row, column) in flows_cells:
+            if all([self.radio_button1.isChecked(), one_side_flow]):
+                self.main_table.item(0, 3).setText(str(int(one_side_flow)))
+                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
+                self.fill_air_flow_column_in_main_table(one_side_flow)
+            elif all([self.radio_button2.isChecked(), one_side_flow, two_side_flow]):
+                flow = int(one_side_flow) + int(two_side_flow)
+                self.main_table.item(0, 3).setText(str(flow))
+                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
+                self.fill_air_flow_column_in_main_table(flow)
+            else:
+                self.main_table.item(0, 3).setText('')
+                self.clean_air_flow_column_in_main_table()
+
+
+    def set_base_floor_height_in_main_table(self) -> None:
+        num_rows = self.main_table.rowCount()
+        base_floor_height = self.floor_height_widget.text()
+        if base_floor_height:
+            all_values = []
+            # собираем все значения высоты этажей
+            for row in range(num_rows):
+                all_values.append(self.main_table.item(row, 1).text())
+
+            # если значения по этажам не менялись - меняем на новое
+            if len(set(all_values)) == 1:
+                for row in range(num_rows):
+                    self.main_table.item(row, 1).setText("{:.2f}".format(float(base_floor_height)))
+                    self.main_table.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            else:
+                # определяем максимально встречающееся значение, т.е. ранее установленное значение которое не было изменено
+                current_height = max(set(all_values), key=all_values.count)
+                # заменяем все базовые значения на новое, кастомные значения сохраняются
+                for row in range(num_rows):
+                    if self.main_table.item(row, 1).text() == current_height:
+                        self.main_table.item(row, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
+                        self.main_table.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        else:
+            for row in range(num_rows):
+                self.main_table.item(row, 1).setText('')
+
+
+    def update_height_column_in_main_table(self, row, column) -> None:
+        base_floor_height = self.floor_height_widget.text()
+        current_floor_height = self.main_table.item(row, 1)
+        if current_floor_height and current_floor_height.text() != '':
+            current_floor_height = current_floor_height.text()
+            if column == 1 and current_floor_height != base_floor_height:
+                num_rows = self.main_table.rowCount()
+                self._fill_height_column_in_main_table(num_rows, row)
 
 
     def update_result(self, row, column) -> None:
@@ -615,12 +749,12 @@ class MainWindow(QMainWindow):
             if column == 4:
                 temperature = self.temperature_widget.text()
                 item_4 = table.item(row, 4)
-                if (item_4.text() != '' and (temperature or temperature != '')):
+                if item_4 and item_4.text() != '':
                     value_4 = float(item_4.text())
                     temperature = float(temperature)
                     pressure = 0.9 * CONSTANTS.ACCELERATION_OF_GRAVITY * value_4 * ((353 / (273 + 5)) - (353 / (273 + temperature)))
                     pressure = "{:.2f}".format(round(pressure, 2))
-                    table.item(row, 5).setText(pressure)
+                    table.setItem(row, 5, QTableWidgetItem(pressure))
                     table.item(row, 5).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
                     table.setItem(row, 5, QTableWidgetItem())
@@ -631,7 +765,7 @@ class MainWindow(QMainWindow):
             rows = table.rowCount()
             for row in range(rows):
                 item_4 = table.item(row, 4)
-                if item_4.text() != '' and (temperature or temperature != ''):
+                if item_4 and item_4.text() != '':
                     value_4 = float(item_4.text())
                     temperature = float(temperature)
                     pressure = 0.9 * CONSTANTS.ACCELERATION_OF_GRAVITY * value_4 * ((353 / (273 + 5)) - (353 / (273 + temperature)))
@@ -951,82 +1085,29 @@ class MainWindow(QMainWindow):
                     main_table.item(row, 14).setText('')
 
 
-    def uncheck_radio_button_1(self) -> None:
-        self.radio_button2.setChecked(True)
-        self.radio_button1.setChecked(False)
-
-
-    def uncheck_radio_button_2(self) -> None:
-        self.radio_button1.setChecked(True)
-        self.radio_button2.setChecked(False)
-
-
-    def set_sputnik_airflow_in_main_table_by_radiobutton_1(self, checked) -> None:
-        if checked:
-            self.radio_button2.setChecked(False)
-            one_side_flow = self.sputnik_table.item(1, 1).text()
-
-            if one_side_flow:
-                self.main_table.item(0, 3).setText(str(int(one_side_flow)))
-                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(one_side_flow)
-            else:
-                self.main_table.item(0, 3).setText('')
-                self.clean_air_flow_column_in_main_table()
-
-
-    def set_sputnik_airflow_in_main_table_by_radiobutton_2(self, checked) -> None:
-        if checked:
-            self.radio_button1.setChecked(False)
-            one_side_flow = self.sputnik_table.item(1, 1).text()
-            two_side_flow = self.sputnik_table.item(3, 1).text()
-
-            if all([one_side_flow, two_side_flow]):
-                flow = int(one_side_flow) + int(two_side_flow)
-                self.main_table.item(0, 3).setText(str(flow))
-                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(flow)
-            else:
-                self.main_table.item(0, 3).setText('')
-                self.clean_air_flow_column_in_main_table()
-
-
-    def set_sputnik_airflow_in_main_table(self, row, column) -> None:
-        flows_cells = ((1, 1), (3, 1))
-        one_side_flow = self.sputnik_table.item(1, 1).text()
-        two_side_flow = self.sputnik_table.item(3, 1).text()
-
-        if (row, column) in flows_cells:
-            if all([self.radio_button1.isChecked(), one_side_flow]):
-                self.main_table.item(0, 3).setText(str(int(one_side_flow)))
-                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(one_side_flow)
-            elif all([self.radio_button2.isChecked(), one_side_flow, two_side_flow]):
-                flow = int(one_side_flow) + int(two_side_flow)
-                self.main_table.item(0, 3).setText(str(flow))
-                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(flow)
-            else:
-                self.main_table.item(0, 3).setText('')
-                self.clean_air_flow_column_in_main_table()
-
-
     def fill_air_flow_column_in_main_table(self, flow) -> None:
-        num_rows = self.main_table.rowCount()
         if flow:
+            table = self.main_table
+            num_rows = table.rowCount()
+            max_value = num_rows - 1
+            progress = QProgressDialog("Вычисляем расход...", None, 0, max_value, self)
+            progress.setWindowTitle("Подождите...жуём")
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setValue(0)
+            progress.setMaximum(max_value)
+            progress.show()
             for row in range(1, num_rows):
                 if row == num_rows-1:
-                    self.main_table.item(row, 3).setText(str(flow))
-                    self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    table.setItem(row, 3, QTableWidgetItem(str(flow)))
                 else:
-                    value = int(flow) + int(self.main_table.item(row-1, 3).text())
-                    value = str(value)
-                    self.main_table.item(row, 3).setText(value)
-                    self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    value = int(flow) + int(table.item(row-1, 3).text())
+                    table.setItem(row, 3, QTableWidgetItem(str(value)))
+                table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                progress.setValue(row - 1)
+                if row % 100 == 0:
+                    QApplication.processEvents()
+            progress.close()
 
 
     def update_air_flow_column_in_main_table_after_delete_row(self) -> None:
@@ -1050,17 +1131,28 @@ class MainWindow(QMainWindow):
             last_flow = int(table.item(num_rows-3, 3).text())
             new_value = init_flow + last_flow
 
-            table.item(num_rows-1, 3).setText(str(init_flow))
+            table.setItem(num_rows-1, 3, QTableWidgetItem(str(init_flow)))
             table.item(num_rows-1, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            table.item(num_rows-2, 3).setText(str(new_value))
+            table.setItem(num_rows-2, 3, QTableWidgetItem(str(new_value)))
             table.item(num_rows-2, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
 
     def clean_air_flow_column_in_main_table(self) -> None:
-        num_rows = self.main_table.rowCount()
+        table = self.main_table
+        num_rows = table.rowCount()
+        max_value = num_rows - 1
+        progress = QProgressDialog("Удаляем расход...", None, 0, max_value, self)
+        progress.setWindowTitle("Подождите...жуём")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        progress.setMaximum(max_value)
+        progress.show()
         for row in range(1, num_rows):
-            self.main_table.item(row, 3).setText('')
+            table.item(row, 3).setText('')
+            progress.setValue(row - 1)
+        progress.close()
 
 
     def calculate_m(self, row, column) -> None:
@@ -1175,7 +1267,6 @@ class MainWindow(QMainWindow):
 
     def calculate_kms_by_radiobutton_1(self, checked) -> None:
         if checked:
-            self.radio_button2.setChecked(False)
             one_side_flow = self.sputnik_table.item(1, 1).text()
             sputnik_a = self.sputnik_table.item(1, 3).text()
             sputnik_b = self.sputnik_table.item(1, 4).text()
@@ -1186,7 +1277,6 @@ class MainWindow(QMainWindow):
 
     def calculate_kms_by_radiobutton_2(self, checked) -> None:
         if checked:
-            self.radio_button1.setChecked(False)
             one_side_flow = self.sputnik_table.item(3, 1).text()
             sputnik_a = self.sputnik_table.item(3, 3).text()
             sputnik_b = self.sputnik_table.item(3, 4).text()
@@ -1224,7 +1314,7 @@ class MainWindow(QMainWindow):
             sputnik_flow = float(flow)
             sputnik_a, sputnik_b = int(sputnik_a), int(sputnik_b)
             num_rows = main_table.rowCount()
-            for row in range(0, num_rows-1):
+            for row in range(num_rows-1):
                 floor_flow = main_table.item(row+1, 3)
                 main_a = main_table.item(row, 10)
                 main_b = main_table.item(row, 11)
@@ -1268,7 +1358,7 @@ class MainWindow(QMainWindow):
                     main_table.item(row, 9).setText('')
         else:
             num_rows = main_table.rowCount()
-            for row in range(0, num_rows-1):
+            for row in range(num_rows-1):
                 main_table.setItem(row, 8, QTableWidgetItem())
                 main_table.setItem(row, 9, QTableWidgetItem())
                 main_table.item(row, 8).setText('')
@@ -1314,14 +1404,12 @@ class MainWindow(QMainWindow):
 
     def calculate_branch_pressure_by_radiobutton_1(self, checked) -> None:
         if checked:
-            self.radio_button2.setChecked(False)
             dynamic = self.sputnik_table.item(1, 10).text()
             self._calculate_branch_pressure(dynamic)
 
 
     def calculate_branch_pressure_by_radiobutton_2(self, checked) -> None:
         if checked:
-            self.radio_button1.setChecked(False)
             dynamic = self.sputnik_table.item(3, 10).text()
             self._calculate_branch_pressure(dynamic)
 
@@ -1387,33 +1475,6 @@ class MainWindow(QMainWindow):
                 self.sputnik_table.item(4, 13).setBackground(QColor(255, 255, 255))
 
 
-    def set_base_floor_height_in_main_table(self) -> None:
-        num_rows = self.main_table.rowCount()
-        base_floor_height = self.floor_height_widget.text()
-        if base_floor_height:
-            all_values = []
-            # собираем все значения высоты этажей
-            for row in range(num_rows):
-                all_values.append(self.main_table.item(row, 1).text())
-
-            # если значения по этажам не менялись - меняем на новое
-            if len(set(all_values)) == 1:
-                for row in range(num_rows):
-                    self.main_table.item(row, 1).setText("{:.2f}".format(float(base_floor_height)))
-                    self.main_table.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            else:
-                # определяем максимально встречающееся значение, т.е. ранее установленное значение которое не было изменено
-                current_height = max(set(all_values), key=all_values.count)
-                # заменяем все базовые значения на новое, кастомные значения сохраняются
-                for row in range(num_rows):
-                    if self.main_table.item(row, 1).text() == current_height:
-                        self.main_table.item(row, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
-                        self.main_table.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        else:
-            for row in range(num_rows):
-                self.main_table.item(row, 1).setText('')
-
-
     def calculate_height(self, row=False, column=False):
         sender = self.sender().objectName()
         match sender:
@@ -1456,16 +1517,6 @@ class MainWindow(QMainWindow):
                 self.main_table.item(row, 4).setText('')
 
 
-    def update_height_column_in_main_table(self, row, column) -> None:
-        base_floor_height = self.floor_height_widget.text()
-        current_floor_height = self.main_table.item(row, 1)
-        if current_floor_height and current_floor_height.text() != '':
-            current_floor_height = current_floor_height.text()
-            if column == 1 and current_floor_height != base_floor_height:
-                num_rows = self.main_table.rowCount()
-                self._fill_height_column_in_main_table(num_rows, row)
-
-
     def _fill_height_column_in_main_table(self, num_rows, row=False) -> None:
         start = row if row else 1
         for line in range(start, num_rows):
@@ -1475,10 +1526,10 @@ class MainWindow(QMainWindow):
                 height = float(previous_height.text()) - float(floor_height.text())
                 if (height > 0 and previous_height.text() != '') or (height == 0 and previous_height.text() != ''):
                     height = "{:.2f}".format(round(height, 2))
-                    self.main_table.item(line, 4).setText(height)
+                    self.main_table.setItem(line, 4, QTableWidgetItem(height))
                     self.main_table.item(line, 4).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
-                    self.main_table.item(line, 4).setText('')
+                    self.main_table.setItem(line, 4, QTableWidgetItem(''))
                     self._clean_height_column_in_main_table(line)
             else:
                 self._clean_height_column_in_main_table(line)
@@ -1507,14 +1558,12 @@ class MainWindow(QMainWindow):
 
     def calculate_full_pressure_by_radiobutton_1(self, checked) -> None:
         if checked:
-            self.radio_button2.setChecked(False)
             klapan_full_pressure = self.sputnik_table.item(2, 13).text()
             self._calculate_full_pressure_by_radiobutton(klapan_full_pressure)
 
 
     def calculate_full_pressure_by_radiobutton_2(self, checked) -> None:
         if checked:
-            self.radio_button1.setChecked(False)
             klapan_full_pressure_1 = self.sputnik_table.item(2, 13).text()
             klapan_full_pressure_2 = self.sputnik_table.item(4, 13).text()
             if all([klapan_full_pressure_1, klapan_full_pressure_2]):
@@ -1560,7 +1609,6 @@ class MainWindow(QMainWindow):
         num_rows = self.main_table.rowCount()
         kms_cols = (8, 9)
         clean_cols = (18, 19, 20, 21)
-        
         kms_pass = self.main_table.item(num_rows, 8)
         kms_branch = self.main_table.item(num_rows, 9)
 
@@ -1579,202 +1627,16 @@ class MainWindow(QMainWindow):
                     self.main_table.item(num_rows, col).setBackground(QColor(255, 255, 255))
 
 
-    def create_deflector_calculation(self) -> object:
-        _box = QGroupBox(CONSTANTS.DEFLECTOR.TITLE)
-        style = self.box_style
-        _box.setStyleSheet(style)
-        _box.setFixedHeight(316)
-        _box.setFixedWidth(540)
-
-        _layout = QHBoxLayout()
-
-        self.deflector = QTableWidget(9, 1)
-        _table = self.deflector
-        _table.horizontalHeader().setVisible(False)
-        _table.verticalHeader().setStyleSheet("QHeaderView::section { background-color: #F3F3F3 }")
-        _table.verticalHeader().setStyleSheet("QHeaderView::section { border-top: 0px solid gray; border-bottom: 0px solid gray; }")
-        _table.setStyleSheet("QHeaderView {padding: 5px; vertical-align: top} QTableWidget { border: 2px solid grey; }")
-        _table.setVerticalHeaderLabels(CONSTANTS.DEFLECTOR.HEADER)
-        _table.setObjectName(CONSTANTS.DEFLECTOR.NAME)
-
-        num_rows = _table.rowCount()
-        for row in range(num_rows):
-            _table.setItem(row, 0, QTableWidgetItem())
-            _table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            if row == 0:
-                _table.item(row, 0).setBackground(QColor(229, 255, 204))
-            else:
-                _table.item(row, 0).setFlags(Qt.ItemFlag.ItemIsEnabled)
-
-        _table.cellChanged.connect(self.calculate_recommended_deflector_velocity)
-        _table.cellChanged.connect(self.calculate_required_deflector_square)
-        _table.cellChanged.connect(self.calculate_deflector_diameter)
-        _table.cellChanged.connect(self.calculate_real_deflector_velocity)
-        _table.cellChanged.connect(self.calculate_velocity_relation)
-        _table.cellChanged.connect(self.calculate_pressure_relation)
-        _table.cellChanged.connect(self.calculate_deflector_pressure)
-        _table.cellChanged.connect(self.activate_deflector_checkbox)
-        _table.cellChanged.connect(self.calculate_available_pressure)
-
-        _table.cellChanged.connect(self.set_deflector_pressure_in_main_table)
-
-        _table.itemChanged.connect(self.update_deflector_pressure_in_main_table)
-        _table.itemChanged.connect(self.validate_deflector_input)
-
-
-        _layout.addWidget(_table)
-        _box.setLayout(_layout)
-        return _box
-
-
-    def validate_deflector_input(self, item) -> None:
-        if item.column() == 0 and item.row() == 0:
-            pattern = r'^(?:[0-9]|[0-9]\d|50)(?:\.\d{1,2})?$'
-            if not re.match(pattern, item.text()):
-                item.setText('')
-                item.setBackground(QColor(255, 153, 153))
-            else:
-                item.setBackground(QColor(229, 255, 204))
-                item.setText(item.text())
-
-
-    def calculate_recommended_deflector_velocity(self, row, column) -> None:
-        if row == 0 and column == 0:
-            window_velocity = self.deflector.item(0, 0).text()
-            if window_velocity:
-                window_velocity = float(window_velocity)
-                result = "{:.2f}".format(round(window_velocity * 0.3, 2))
-                self.deflector.item(1, 0).setText(result)
-            else:
-                self.deflector.item(1, 0).setText('')
-
-
-    def set_full_air_flow_in_deflector(self, row, column) -> None:
-        last_flow_row = self.main_table.rowCount() - 2
-        if row == last_flow_row and column == 3:
-            init_flow = self.main_table.item(0, 3)
-            last_flow = self.main_table.item(last_flow_row, 3)
-
-            if all([init_flow, last_flow]) and all([init_flow.text() != '', last_flow.text() != '']):
-                result = int(init_flow.text()) + int(last_flow.text())
-                self.deflector.item(2, 0).setText(str(result))
-            else:
-                self.deflector.item(2, 0).setText('')
-
-
-    def update_full_air_flow_in_deflector_after_delete_row(self) -> None:
-        num_rows = self.main_table.rowCount()
-        last_row_main_table = num_rows - 1
-        air_flow = self.main_table.item(last_row_main_table, 3)
-        if air_flow and air_flow.text() != '':
-            self.deflector.item(2, 0).setText(air_flow.text())
-        else:
-            self.deflector.item(2, 0).setText('')
-
-
-    def calculate_required_deflector_square(self, row, column) -> None:
-        if column == 0 and row in (1, 2):
-            recommended_velocity = self.deflector.item(1, 0).text()
-            air_flow = self.deflector.item(2, 0).text()
-            if all([recommended_velocity, air_flow]):
-                recommended_velocity = float(recommended_velocity)
-                air_flow = float(air_flow)
-                result = "{:.3f}".format(round(air_flow / (3_600 * recommended_velocity), 3))
-                self.deflector.item(3, 0).setText(result)
-            else:
-                self.deflector.item(3, 0).setText('')
-
-
-    def calculate_deflector_diameter(self, row, column) -> None:
-        if column == 0 and row == 3:
-            required_deflector_square = self.deflector.item(3, 0).text()
-            if required_deflector_square:
-                required_deflector_square = float(required_deflector_square)
-
-                for k in CONSTANTS.DEFLECTOR.DIAMETERS.keys():
-                    if required_deflector_square <= k:
-                        diameter = CONSTANTS.DEFLECTOR.DIAMETERS.get(k)
-                        self.deflector.item(4, 0).setText(diameter)
-                        self.deflector.item(4, 0).setBackground(QColor(255, 255, 255))
-                        break
-                    else:
-                        self.deflector.item(4, 0).setBackground(QColor(229, 255, 204))
-                        self.deflector.item(4, 0).setText('Нет значения!')
-            else:
-                self.deflector.item(4, 0).setText('')
-
-
-    def calculate_real_deflector_velocity(self, row, column) -> None:
-        if (row, column) in ((2, 0), (4, 0)):
-            air_flow = self.deflector.item(2, 0).text()
-            diameter = self.deflector.item(4, 0).text()
-            if all([air_flow, diameter]) and diameter != 'Нет значения!':
-                air_flow = float(air_flow)
-                diameter = float(diameter)
-                result = "{:.2f}".format(round(air_flow / (3_600 * math.pi * (pow(diameter / 1_000, 2) / 4)), 2))
-                self.deflector.item(5, 0).setText(result)
-            else:
-                self.deflector.item(5, 0).setText('')
-
-
-    def calculate_velocity_relation(self, row, column) -> None:
-        if (row, column) in ((0, 0), (5, 0)):
-            wind_velocity = self.deflector.item(0, 0).text()
-            real_velocity = self.deflector.item(5, 0).text()
-            if all([wind_velocity, real_velocity]):
-                wind_velocity = float(wind_velocity)
-                real_velocity = float(real_velocity)
-                result = "{:.2f}".format(round(real_velocity / wind_velocity, 2))
-                self.deflector.item(6, 0).setText(result)
-            else:
-                self.deflector.item(6, 0).setText('')
-
-
-    def calculate_pressure_relation(self, row, column) -> None:
-        if row == 6 and column == 0:
-            velocity_relation = self.deflector.item(6, 0).text()
-            if velocity_relation:
-                try:
-                    x = float(velocity_relation)
-                    f = interp1d(
-                        CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.X,
-                        CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.TABLE
-                    )
-                    result = "{:.2f}".format(around(f(x), 2))
-                    self.deflector.item(7, 0).setText(result)
-                except ValueError:
-                    self.deflector.item(7, 0).setText('')
-            else:
-                self.deflector.item(7, 0).setText('')
-
-
-    def calculate_deflector_pressure(self, row, column) -> None:
-        if (row, column) in ((0, 0), (7, 0)):
-            wind_velocity = self.deflector.item(0, 0).text()
-            pressure_relation = self.deflector.item(7, 0).text()
-            if all([wind_velocity, pressure_relation]):
-                wind_velocity = float(wind_velocity)
-                pressure_relation = float(pressure_relation)
-                result = pressure_relation * ((353 / (273.15 + 5)) * pow(wind_velocity, 2) / 2)
-                result = "{:.2f}".format(round(result, 2))
-                self.deflector.item(8, 0).setText(result)
-                self.deflector.item(8, 0).setBackground(QColor(153, 255, 255))
-            else:
-                self.deflector.item(8, 0).setText('')
-                self.deflector.item(8, 0).setBackground(QColor(255, 255, 255))
-
-
     def _join_deflector_column_cells_in_main_table(self) -> None:
         num_rows = self.main_table.rowCount()
         self.main_table.setSpan(0, 6, num_rows, 1)
         self.main_table.item(0, 6).setBackground(QColor(204, 204, 255))
 
 
-    def activate_deflector_checkbox(self, row, column) -> None:
-        if row == 8 and column == 0:
-            deflector_pressure = self.deflector.item(8, 0).text()
-            if deflector_pressure:
-                self.activate_deflector.setDisabled(False)
+    def activate_deflector_checkbox(self, value) -> None:
+        deflector_pressure = value
+        if deflector_pressure:
+            self.activate_deflector.setDisabled(False)
 
 
     def show_deflector_column_in_main_table(self, state) -> None:
@@ -1787,29 +1649,24 @@ class MainWindow(QMainWindow):
 
     def set_deflector_pressure_in_main_table(self, row=False, column=False) -> None:
         sender = self.sender()
-        deflector_pressure = self.deflector.item(8, 0).text()
+        deflector_pressure = self.deflector.itemAtPosition(8, 1).widget().text()
         main_table = self.main_table
 
         if isinstance(sender, QCheckBox):
-            if deflector_pressure and row == 2:
+            if deflector_pressure:
                 main_table.item(0, 6).setText(deflector_pressure)
-                main_table.item(0, 6).setBackground(QColor(204, 204, 255))
             else:
                 main_table.item(0, 6).setText('')
-        elif isinstance(sender, QTableWidget):
-            if deflector_pressure and row == 8 and column == 0:
+        elif isinstance(sender, QTableWidget) and (sender.objectName() == 'sputnik' and column == 1):
+            if deflector_pressure:
                 main_table.item(0, 6).setText(deflector_pressure)
-                main_table.item(0, 6).setBackground(QColor(204, 204, 255))
 
 
-    def update_deflector_pressure_in_main_table(self, item) -> None:
-        if item.row() == 8 and item.column() == 0:
-            deflector_pressure = item.text()
-            if self.activate_deflector.isChecked() and deflector_pressure:
-                self.main_table.item(0, 6).setText(deflector_pressure)
-                self.main_table.item(0, 6).setBackground(QColor(255, 255, 255))
-            else:
-                self.main_table.item(0, 6).setText('')
+    def update_deflector_pressure_in_main_table(self, value) -> None:
+        if self.activate_deflector.isChecked() and value:
+            self.main_table.item(0, 6).setText(value)
+        else:
+            self.main_table.item(0, 6).setText('')
 
 
     def calculate_available_pressure(self, row=False, column=False) -> None:
@@ -1921,6 +1778,7 @@ class MainWindow(QMainWindow):
         num_rows = table.rowCount()
 
         for col in (8, 9):
+            table.setItem(num_rows-1, col, QTableWidgetItem())
             table.item(num_rows-1, col).setBackground(QColor(229, 255, 204))
             table.item(num_rows-2, col).setBackground(QColor(255, 255, 255))
         table.item(num_rows-1, 8).setText('0')
@@ -1931,8 +1789,7 @@ class MainWindow(QMainWindow):
 
 
     def validate_last_floor_kms(self, item) -> None:
-        table = self.main_table
-        last_row = table.rowCount() - 1
+        last_row = self.main_table.rowCount() - 1
         column = item.column()
         row = item.row()
         if column in (8, 9) and row == last_row:
@@ -1943,6 +1800,193 @@ class MainWindow(QMainWindow):
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 item.setText(item.text())
+
+
+    def create_deflector_calculation(self) -> object:
+        _box = QGroupBox()
+        _layout = QGridLayout()
+        self.deflector = _layout
+
+        labels = CONSTANTS.DEFLECTOR.LABELS
+        for i in range(len(labels)):
+            label = QLabel(labels[i])
+            label.setFixedWidth(410)
+            _layout.addWidget(label, i, 0)
+            if i == 0:
+                line_edit = QLineEdit()
+                line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                line_edit.setFixedWidth(60)
+                line_edit.setFixedHeight(30)
+                line_edit.setStyleSheet('QLineEdit {background-color: #E5FFCC }')
+                _layout.addWidget(line_edit, 0, 1)
+            else:
+                line_label = QLineEdit()
+                line_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                line_label.setFixedWidth(60)
+                line_label.setFixedHeight(30)
+                line_label.setStyleSheet('QLineEdit {background-color: #EFEFEF }')
+                line_label.setReadOnly(True)
+                _layout.addWidget(line_label, i, 1)
+
+        wind_velocity = _layout.itemAtPosition(0, 1)
+        self.wind_velocity = wind_velocity.widget()
+        wind_velocity = self.wind_velocity
+        wind_regex = QRegularExpression(r'^(?:[0-9]|[0-9]\d|50)(?:\.\d{1,2})?$')
+        wind_validator = QRegularExpressionValidator(wind_regex)
+        wind_velocity.setValidator(wind_validator)
+
+        deflector_pressure = _layout.itemAtPosition(8, 1).widget()
+        recommended_velocity = _layout.itemAtPosition(1, 1).widget()
+        air_flow = _layout.itemAtPosition(2, 1).widget()
+        required_deflector_square = _layout.itemAtPosition(3, 1).widget()
+        deflector_diameter = _layout.itemAtPosition(4, 1).widget()
+        real_deflector_velocity = _layout.itemAtPosition(5, 1).widget()
+        velocity_relation = _layout.itemAtPosition(6, 1).widget()
+        pressure_relation = _layout.itemAtPosition(7, 1).widget()
+        deflector_pressure = _layout.itemAtPosition(8, 1).widget()
+        deflector_pressure.setObjectName(CONSTANTS.DEFLECTOR.NAME)
+
+        wind_velocity.textChanged.connect(self.calculate_recommended_deflector_velocity)
+        recommended_velocity.textChanged.connect(self.calculate_required_deflector_square)
+        air_flow.textChanged.connect(self.calculate_required_deflector_square)
+        required_deflector_square.textChanged.connect(self.calculate_deflector_diameter)
+        deflector_diameter.textChanged.connect(self.calculate_real_deflector_velocity)
+        air_flow.textChanged.connect(self.calculate_real_deflector_velocity)
+        real_deflector_velocity.textChanged.connect(self.calculate_velocity_relation)
+        wind_velocity.textChanged.connect(self.calculate_velocity_relation)
+        velocity_relation.textChanged.connect(self.calculate_pressure_relation)
+        wind_velocity.textChanged.connect(self.calculate_deflector_pressure)
+        pressure_relation.textChanged.connect(self.calculate_deflector_pressure)
+
+        deflector_pressure.textChanged.connect(self.activate_deflector_checkbox)
+        wind_velocity.textChanged.connect(self.calculate_available_pressure)
+
+        deflector_pressure.textChanged.connect(self.update_deflector_pressure_in_main_table)
+
+        _box.setLayout(_layout)
+        return _box
+
+
+    def set_full_air_flow_in_deflector(self, row, column) -> None:
+        last_flow_row = self.main_table.rowCount() - 2
+        if row == last_flow_row and column == 3:
+            init_flow = self.main_table.item(0, 3)
+            last_flow = self.main_table.item(last_flow_row, 3)
+
+            if all([init_flow, last_flow]) and all([init_flow.text() != '', last_flow.text() != '']):
+                result = int(init_flow.text()) + int(last_flow.text())
+                self.deflector.itemAtPosition(2, 1).widget().setText(str(result))
+            else:
+                self.deflector.itemAtPosition(2, 1).widget().setText('')
+
+
+    def update_full_air_flow_in_deflector_after_delete_row(self) -> None:
+        num_rows = self.main_table.rowCount()
+        last_row_main_table = num_rows - 1
+        air_flow = self.main_table.item(last_row_main_table, 3)
+        if air_flow and air_flow.text() != '':
+            self.deflector.itemAtPosition(2, 1).widget().setText(air_flow.text())
+        else:
+            self.deflector.itemAtPosition(2, 1).widget().setText('')
+
+
+    def calculate_recommended_deflector_velocity(self, value) -> None:
+        if value:
+            wind_velocity = float(value)
+            result = "{:.2f}".format(round(wind_velocity * 0.3, 2))
+            self.deflector.itemAtPosition(1, 1).widget().setText(result)
+        else:
+            self.deflector.itemAtPosition(1, 1).widget().setText('')
+
+
+    def calculate_required_deflector_square(self, value) -> None:
+        recommended_velocity = self.deflector.itemAtPosition(1, 1).widget().text()
+        air_flow = self.deflector.itemAtPosition(2, 1).widget().text()
+        if all([recommended_velocity, air_flow]):
+            recommended_velocity = float(recommended_velocity)
+            air_flow = float(air_flow)
+            result = "{:.3f}".format(round(air_flow / (3_600 * recommended_velocity), 3))
+            self.deflector.itemAtPosition(3, 1).widget().setText(result)
+        else:
+            self.deflector.itemAtPosition(3, 1).widget().setText('')
+
+
+    def calculate_deflector_diameter(self, value) -> None:
+        required_deflector_square = value
+        if required_deflector_square:
+            required_deflector_square = float(required_deflector_square)
+            for k in CONSTANTS.DEFLECTOR.DIAMETERS.keys():
+                if required_deflector_square <= k:
+                    diameter = CONSTANTS.DEFLECTOR.DIAMETERS.get(k)
+                    self.deflector.itemAtPosition(4, 1).widget().setText(diameter)
+                    break
+                else:
+                    self.deflector.itemAtPosition(4, 1).widget().setText('Нет значения!')
+        else:
+            self.deflector.itemAtPosition(4, 1).widget().setText('')
+
+
+    def calculate_real_deflector_velocity(self, value) -> None:
+        air_flow = self.deflector.itemAtPosition(2, 1).widget().text()
+        diameter = self.deflector.itemAtPosition(4, 1).widget().text()
+        if all([air_flow, diameter]) and diameter != 'Нет значения!':
+            air_flow = float(air_flow)
+            diameter = float(diameter)
+            result = "{:.2f}".format(round(air_flow / (3_600 * math.pi * (pow(diameter / 1_000, 2) / 4)), 2))
+            self.deflector.itemAtPosition(5, 1).widget().setText(result)
+        else:
+            self.deflector.itemAtPosition(5, 1).widget().setText('')
+
+
+    def calculate_velocity_relation(self, value) -> None:
+        wind_velocity = self.deflector.itemAtPosition(0, 1).widget().text()
+        real_velocity = self.deflector.itemAtPosition(5, 1).widget().text()
+        if all([wind_velocity, real_velocity]):
+            wind_velocity = float(wind_velocity)
+            real_velocity = float(real_velocity)
+            result = "{:.2f}".format(round(real_velocity / wind_velocity, 2))
+            self.deflector.itemAtPosition(6, 1).widget().setText(result)
+        else:
+            self.deflector.itemAtPosition(6, 1).widget().setText('')
+
+
+    def calculate_pressure_relation(self, value) -> None:
+        velocity_relation = value
+        if velocity_relation:
+            try:
+                x = float(velocity_relation)
+                f = interp1d(
+                    CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.X,
+                    CONSTANTS.REFERENCE_DATA.DEFLECTOR_PRESSURE_RELATION.TABLE
+                )
+                result = "{:.2f}".format(around(f(x), 2))
+                self.deflector.itemAtPosition(7, 1).widget().setText(result)
+            except ValueError:
+                self.deflector.itemAtPosition(7, 1).widget().setText('')
+        else:
+            self.deflector.itemAtPosition(7, 1).widget().setText('')
+
+
+    def calculate_deflector_pressure(self, value) -> None:
+        wind_velocity = self.deflector.itemAtPosition(0, 1).widget().text()
+        pressure_relation = self.deflector.itemAtPosition(7, 1).widget().text()
+        if all([wind_velocity, pressure_relation]):
+            wind_velocity = float(wind_velocity)
+            pressure_relation = float(pressure_relation)
+            result = pressure_relation * ((353 / (273.15 + 5)) * pow(wind_velocity, 2) / 2)
+            result = "{:.2f}".format(round(result, 2))
+            self.deflector.itemAtPosition(8, 1).widget().setText(result)
+        else:
+            self.deflector.itemAtPosition(8, 1).widget().setText('')
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1962,6 +2006,8 @@ if __name__ == '__main__':
     import sys
     app = QApplication(sys.argv)
     app.setFont(QFont('Consolas', 10))
+    app.setStyleSheet('QMessageBox { messagebox-text-interaction-flags: 5; font-size: 13px; }')
+    app.setStyle('windowsvista')
     window = MainWindow()
     window.setWindowIcon(QIcon(os.path.join(basedir, 'app.ico')))
     window.setIconSize(QSize(15, 15))
