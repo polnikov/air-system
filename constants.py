@@ -2,7 +2,6 @@ class CONSTANTS:
     APP_TITLE = 'Расчет естественной вентиляции'
     TAB1_TITLE = "Основной расчёт"
     TAB2_TITLE = "Расчёт дефлектора"
-
     ACCELERATION_OF_GRAVITY = 9.81
 
     class INIT_DATA:
@@ -83,9 +82,36 @@ class CONSTANTS:
 
 
     class MAIN_TABLE:
+        HEADER_HEIGHT = 75
+        HEIGHT = 30
+        WIDTHS = {
+            0: 40,
+            1: 70,
+            2: 70,
+            3: 70,
+            4: 60,
+            5: 60,
+            6: 60,
+            7: 60,
+            8: 60,
+            9: 60,
+            10: 110,
+            11: 110,
+            12: 70,
+            13: 70,
+            14: 70,
+            15: 70,
+            16: 70,
+            17: 70,
+            18: 70,
+            19: 70,
+            20: 70,
+        }
         TITLE = 'Основной расчёт'
-        NAME = 'main'
-        HEADER = [
+        HEADER_NAME = 'header'
+        ROW_NAME = 'row'
+        LAST_ROW_NAME = 'last_row'
+        LABELS = [
             'Этаж',
             'Высота\nэтажа\n[м]',
             'Участок',
@@ -109,23 +135,27 @@ class CONSTANTS:
             'ΔP\n[Па]',
             'Результат',
         ]
-        TOOLTIP_L = 'Расстояние от вентиляционной решетки\nдо устья вентиляционной шахты'
-
-
-    class LAST_FLOOR_TABLE:
-        TITLE = 'Последний этаж'
-        NAME = 'last'
+        TOOLTIP_H = 'Расстояние от вентиляционной решетки\nдо устья вентиляционной шахты'
 
 
     class SPUTNIK_TABLE:
+        HEADER_HEIGHT = 90
+        HEIGHT = 30
+        WIDTHS = {
+            0: 80,
+            1: 70,
+            3: 90,
+            4: 90,
+            'other': 72,
+        }
         TITLE = 'Расчёт спутника'
         NAME = 'sputnik'
-        HEADER = [
+        LABELS = [
             'Участок',
             'L\n[м3/ч]',
             'Длина\nканала\n[м]',
-            'Сторона канала\na\n(большая)\n[мм]',
-            'Сторона канала\nb\n(меньшая)\n[мм]',
+            'Сторона\nканала\na\n(большая)\n[мм]',
+            'Сторона\nканала\nb\n(меньшая)\n[мм]',
             'v\n[м/с]',
             'Dэкв\n[м]',
             'R\n[Па/м]',
@@ -137,12 +167,16 @@ class CONSTANTS:
             'Z+R∙l∙m\n[Па]',
             'Выбор\nрасчёта',
         ]
-        RADIO_TOOLTIP_1 = 'Расчёт одностороннего блока'
-        RADIO_TOOLTIP_2 = 'Расчёт двухстороннего блока'
+        RADIO_TOOLTIPS = {
+            3: 'Расчёт одностороннего блока',
+            5: 'Расчёт двухстороннего блока',
+        }
         KLAPAN_FLOW_TOOLTIP = 'Проектный расход\nчерез клапан'
         KLAPAN_LABEL = 'Приточный\nклапан'
-        SECTOR_1 = '1-2'
-        SECTOR_2 = '1*-2*'
+        SECTORS = {
+            2: '1-2',
+            4: '1*-2*',
+        }
 
 
     class REFERENCE_DATA:

@@ -1,8 +1,6 @@
 import os
 import platform
-import re
 import math
-import time
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
@@ -17,7 +15,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QGridLayout,
-    QTableWidget,
     QVBoxLayout,
     QComboBox,
     QGroupBox,
@@ -27,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QTabWidget,
     QTableWidgetItem,
-    QProgressDialog,
+    QScrollArea,
 )
 
 from constants import CONSTANTS
@@ -38,7 +35,7 @@ basedir = os.path.dirname(__file__)
 
 try:
     from ctypes import windll  # Only exists on Windows.
-    myappid = 'akudjatechnology.air-system'
+    myappid = 'akudjatechnology.natural-air-system'
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
@@ -65,6 +62,7 @@ class MainWindow(QMainWindow):
                 background-color: #F3F3F3
             }
         '''
+        self.rows_count = 0
 
         menubar = self.menuBar()
         help_action = QAction("Руководство", self)
@@ -85,20 +83,33 @@ class MainWindow(QMainWindow):
         _layout = QVBoxLayout()
 
         _hbox1 = QHBoxLayout()
-        # _hbox1.setContentsMargins(0, 0, 0, 0)
         _hbox1.addWidget(self.create_init_data_box())
-        _hbox1.addWidget(self.create_sputnik_table_box())
+        _hbox1.addWidget(self.create_sputnik_calculation())
 
         _hbox2 = QHBoxLayout()
         _hbox2.addWidget(self.create_deflector_checkbox())
         _hbox2.addWidget(self.create_buttons_box())
-        
-        _hbox3 = QVBoxLayout()
-        _hbox3.setContentsMargins(1, 1, 1, 1)
-        _hbox3.addWidget(self.create_main_table_box())
-        _hbox3.setAlignment(self.main_table_box, Qt.AlignmentFlag.AlignTop)
-
         _layout.setAlignment(_hbox2, Qt.AlignmentFlag.AlignTop)
+
+        _hbox3 = QVBoxLayout()
+        _hbox3.setContentsMargins(5, 2, 2, 2)
+        scroll_area = QScrollArea()
+        self.scroll_area = scroll_area
+        scroll_area.setStyleSheet('background-color: transparent;')
+        scroll_area.setWidgetResizable(True)
+        _hbox3.addWidget(scroll_area)
+        scroll_widget = QWidget(scroll_area)
+        scroll_area.setWidget(scroll_widget)
+        self.main_box = QVBoxLayout(scroll_widget)
+        self.main_box.setContentsMargins(1, 1, 1, 1)
+        self.main_box.setSpacing(1)
+        self.main_box.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.main_box.addWidget(self.create_header())
+
+        self.main_box.addWidget(self.create_last_row())
+        for i in range(4):
+            self.main_box.insertWidget(2, self.create_row())
+        self.last_row.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
 
         _layout.addLayout(_hbox1)
         _layout.addLayout(_hbox2)
@@ -149,8 +160,13 @@ class MainWindow(QMainWindow):
         temperature_regex = QRegularExpression("^(?:\d|[12]\d|30)(?:\.\d)?$")
         temperature_validator = QRegularExpressionValidator(temperature_regex)
         temperature_widget.setValidator(temperature_validator)
+        temperature_widget.textChanged.connect(self.calculate_sputnik_specific_pressure_loss)
+        temperature_widget.textChanged.connect(self.calculate_sputnik_dynamic)
         temperature_widget.textChanged.connect(self.calculate_gravi_pressure)
         temperature_widget.textChanged.connect(self.calculate_dynamic)
+        temperature_widget.textChanged.connect(self.calculate_specific_pressure_loss)
+        temperature_widget.textChanged.connect(self.calculate_branch_pressure)
+        temperature_widget.textChanged.connect(self.calculate_pass_pressure)
 
         surface_item = _init_data.itemAtPosition(1, 1)
         self.surface_widget = surface_item.widget()
@@ -159,6 +175,7 @@ class MainWindow(QMainWindow):
         surface_regex = QRegularExpression("^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$")
         surface_validator = QRegularExpressionValidator(surface_regex)
         surface_widget.setValidator(surface_validator)
+        surface_widget.textChanged.connect(self.calculate_sputnik_specific_pressure_loss)
         surface_widget.textChanged.connect(self.calculate_specific_pressure_loss)
 
         floor_height_item = _init_data.itemAtPosition(2, 1)
@@ -167,7 +184,8 @@ class MainWindow(QMainWindow):
         floor_height_regex = QRegularExpression("^(?:[1-9]\d?|100)(?:\.\d{1,2})?$")
         floor_height_validator = QRegularExpressionValidator(floor_height_regex)
         floor_height_widget.setValidator(floor_height_validator)
-        floor_height_widget.textChanged.connect(self.set_base_floor_height_in_main_table)
+        floor_height_widget.textChanged.connect(self.set_base_floor_height_in_table)
+        floor_height_widget.textChanged.connect(self.calculate_height)
 
         self.channel_height_item = _init_data.itemAtPosition(3, 1)
         self.channel_height_widget = self.channel_height_item.widget()
@@ -181,6 +199,7 @@ class MainWindow(QMainWindow):
         klapan_label = QLabel(CONSTANTS.INIT_DATA.KLAPAN_LABEL)
         self.klapan_widget = QComboBox()
         klapan_widget = self.klapan_widget
+        klapan_widget.setObjectName("klapan_widget")
         klapan_widget.setStyleSheet('QComboBox { background-color: #E5FFCC } QAbstractItemView { background-color: #E5FFCC }')
         klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
@@ -188,7 +207,7 @@ class MainWindow(QMainWindow):
         self.klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(klapan_widget.currentText())
         self.klapan_air_flow_label = QLabel(f'{self.klapan_widget_value} м<sup>3</sup>/ч')
         klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
-        klapan_widget.currentTextChanged.connect(self.calculate_klapan_pressure_loss)
+        klapan_widget.currentTextChanged.connect(self.calculate_sputnik_klapan_pressure_loss)
         klapan_widget.currentTextChanged.connect(self.activate_klapan_input)
         klapan_layout = QHBoxLayout()
         klapan_layout.addWidget(klapan_label)
@@ -197,6 +216,7 @@ class MainWindow(QMainWindow):
         klapan_input_label_1 = QLabel(CONSTANTS.INIT_DATA.KLAPAN_INPUT_LABEL_1)
         self.klapan_input = QLineEdit()
         klapan_input = self.klapan_input
+        klapan_input.setObjectName('klapan_input')
         klapan_input_label_2 = QLabel('м<sup>3</sup>/ч')
         klapan_input.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
         klapan_input.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
@@ -207,7 +227,7 @@ class MainWindow(QMainWindow):
         klapan_input_validator = QRegularExpressionValidator(klapan_input_regex)
         klapan_input.setValidator(klapan_input_validator)
         klapan_input.setToolTip(CONSTANTS.INIT_DATA.KLAPAN_INPUT_TOOLTIP)
-        klapan_input.textChanged.connect(self.calculate_klapan_pressure_loss)
+        klapan_input.textChanged.connect(self.calculate_sputnik_klapan_pressure_loss)
 
         _init_data.addLayout(klapan_layout, 4, 0, 1, 2)
         _init_data.addWidget(self.klapan_air_flow_label, 4, 2)
@@ -229,8 +249,7 @@ class MainWindow(QMainWindow):
         activate_deflector = self.activate_deflector
         activate_deflector.setDisabled(True)
         activate_deflector.setChecked(False)
-        activate_deflector.stateChanged.connect(self.show_deflector_column_in_main_table)
-        activate_deflector.stateChanged.connect(self.set_deflector_pressure_in_main_table)
+        activate_deflector.stateChanged.connect(self.show_deflector_in_table)
         activate_deflector.stateChanged.connect(self.calculate_available_pressure)
 
         _layout.addWidget(label)
@@ -252,8 +271,20 @@ class MainWindow(QMainWindow):
         add_row_button.setToolTip(CONSTANTS.BUTTONS.ADD_BUTTON_TOOLTIP)
         _layout.addWidget(add_row_button)
         add_row_button.clicked.connect(self.add_row)
-        add_row_button.clicked.connect(self.set_floor_number_in_main_table)
-        add_row_button.clicked.connect(self._join_deflector_column_cells_in_main_table)
+        add_row_button.clicked.connect(self.set_full_air_flow_in_deflector)
+        add_row_button.clicked.connect(self.set_sputnik_airflow_in_table)
+        add_row_button.clicked.connect(self.calculate_height)
+
+        self.input_for_delete = QLineEdit()
+        input = self.input_for_delete
+        input_regex = QRegularExpression('^[1-9]{1,2}$|^100$')
+        input_validator = QRegularExpressionValidator(input_regex)
+        input.setValidator(input_validator)
+        input.setStyleSheet('QLineEdit {background-color: #FFCCCC; border: 1px solid grey; border-radius: 5px}')
+        input.setFixedHeight(33)
+        input.setFixedWidth(40)
+        input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        _layout.addWidget(input)
 
         self.delete_row_button = QPushButton()
         delete_row_button = self.delete_row_button
@@ -262,336 +293,436 @@ class MainWindow(QMainWindow):
         delete_row_button.setToolTip(CONSTANTS.BUTTONS.DELETE_BUTTON_TOOLTIP)
         _layout.addWidget(delete_row_button)
         delete_row_button.clicked.connect(self.delete_row)
-        delete_row_button.clicked.connect(self.update_full_air_flow_in_deflector_after_delete_row)
-        # delete_row_button.clicked.connect(self.update_air_flow_column_in_main_table_after_delete_row)
-        delete_row_button.clicked.connect(self.set_floor_number_in_main_table)
+        delete_row_button.clicked.connect(self.set_sputnik_airflow_in_table)
+        delete_row_button.clicked.connect(self.set_full_air_flow_in_deflector)
 
         _widget.setLayout(_layout)
         return _widget
 
 
-    def create_sputnik_table_box(self) -> object:
+    def create_sputnik_calculation(self) -> object:
         _box = QGroupBox(CONSTANTS.SPUTNIK_TABLE.TITLE)
-        style = self.box_style
-        _box.setStyleSheet(style)
+        _box.setStyleSheet(self.box_style)
         _box.setFixedHeight(298)
+        _layout = QGridLayout()
+        _layout.setObjectName(CONSTANTS.SPUTNIK_TABLE.NAME)
+        self.sputnik = _layout
 
-        _layout = QVBoxLayout()
-
-        self.sputnik_table = QTableWidget(5, 15)
-        _table = self.sputnik_table
-        _table.verticalHeader().setVisible(False)
-        _table.horizontalHeader().setStretchLastSection(True)
-        _table.setStyleSheet(self.table_style)
-        _table.setHorizontalHeaderLabels(CONSTANTS.SPUTNIK_TABLE.HEADER)
-        _table.setObjectName(CONSTANTS.SPUTNIK_TABLE.NAME)
-
-        num_rows = _table.rowCount()
-        num_cols = _table.columnCount()
-
-        # устанавливаем виджет QTableWidgetItem для всех ячеек таблицы и отключаем редактирование
-        for row in range(num_rows):
-            for col in range(num_cols):
-                _table.setItem(row, col, QTableWidgetItem())
-                _table.item(row, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                editable = (
-                    (0, 1),
-                    (1, 1),
-                    (1, 2),
-                    (1, 3),
-                    (1, 4),
-                    (1, 11),
-                    (3, 1),
-                    (3, 2),
-                    (3, 3),
-                    (3, 4),
-                    (3, 11),
-                )
-                if (row, col) not in editable:
-                    _table.item(row, col).setFlags(Qt.ItemFlag.ItemIsEnabled)
-                else:
-                    _table.item(row, col).setBackground(QColor(229, 255, 204))
-
-        for row in range(num_rows):
-            _table.setRowHeight(row, 36)
-            match row:
-                case 2 | 4:
-                    _table.setSpan(row, 0, 1, 13)
+        labels = CONSTANTS.SPUTNIK_TABLE.LABELS
+        for i in range(len(labels)):
+            label = QLabel(labels[i])
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setStyleSheet('QLabel { background-color: #E0E0E0 }')
+            match i:
                 case 0:
-                    _table.setSpan(row, 2, 1, 11)
-                case 1 | 3:
-                    _table.setSpan(row, 14, 2, 1)
-
-        for col in range(num_cols):
-            match col:
-                case 0:
-                    _table.setColumnWidth(col, 80)
+                    label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
                 case 1:
-                    _table.setColumnWidth(col, 80)
+                    label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
                 case 3 | 4:
-                    _table.setColumnWidth(col, 110)
+                    label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
                 case _:
-                    _table.setColumnWidth(col, 72)
+                    label.setFixedWidth(72)
+            label.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEADER_HEIGHT)
+            _layout.addWidget(label, 0, i)
 
-        # установка заливки для редактируемых столбцов
-        _table.item(0, 1).setBackground(QColor(229, 255, 204))
+        input_edit_style = 'QLineEdit { background-color: #E5FFCC }'
+        result_style = 'QLineEdit { background-color: #99FFFF; border: 0 }'
+        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0 }'
 
-        # заполняем таблицу
-        _table.item(0, 0).setText(CONSTANTS.SPUTNIK_TABLE.KLAPAN_LABEL)
-        _table.item(0, 1).setToolTip(CONSTANTS.SPUTNIK_TABLE.KLAPAN_FLOW_TOOLTIP)
-        _table.item(1, 0).setText(CONSTANTS.SPUTNIK_TABLE.SECTOR_1)
-        _table.item(3, 0).setText(CONSTANTS.SPUTNIK_TABLE.SECTOR_2)
+        self.klapan_flow = QLineEdit()
+        klapan_flow = self.klapan_flow
+        klapan_flow.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        klapan_flow.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+        klapan_flow.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(1))
+        klapan_flow.setToolTip(CONSTANTS.SPUTNIK_TABLE.KLAPAN_FLOW_TOOLTIP)
+        klapan_flow.setStyleSheet(input_edit_style)
+        klapan_flow.setObjectName('klapan_flow')
+        _layout.addWidget(klapan_flow, 1, 1)
 
-        # размещаем радиокнопки
-        for row in (1, 3):
-            widget = QWidget()
-            layout = QHBoxLayout(widget)
-            layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            radio_button = QRadioButton(widget)
-            layout.addWidget(radio_button)
-            widget.setLayout(layout)
-            _table.setCellWidget(row, 14, widget)
+        klapan_flow.textChanged.connect(self.calculate_sputnik_klapan_pressure_loss)
 
-        self.radio_button1 = _table.cellWidget(1, 14).findChild(QRadioButton)
-        self.radio_button2 = _table.cellWidget(3, 14).findChild(QRadioButton)
-        radio_button1, radio_button2 = self.radio_button1, self.radio_button2
-        radio_button1.setChecked(True)
+        for i in (1, 3, 5):
+            edit = QLineEdit()
+            edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            edit.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+            edit.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get('other'))
+            edit.setReadOnly(True)
+            edit.setStyleSheet(result_style)
+            _layout.addWidget(edit, i, 13)
 
-        radio_button1.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIP_1)
-        radio_button2.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIP_2)
+        klapan = QLabel(CONSTANTS.SPUTNIK_TABLE.KLAPAN_LABEL)
+        klapan.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        klapan.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+        klapan.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
+        klapan.setStyleSheet('QLabel { background-color: #E0E0E0; }')
+        klapan.setToolTip(CONSTANTS.SPUTNIK_TABLE.KLAPAN_FLOW_TOOLTIP)
+        _layout.addWidget(klapan, 1, 0)
 
-        # обработчики
-        radio_button1.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_1)
-        radio_button2.clicked.connect(self.set_sputnik_airflow_in_main_table_by_radiobutton_2)
+        for i in (2, 4):
+            label = QLabel(CONSTANTS.SPUTNIK_TABLE.SECTORS.get(i))
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setStyleSheet('QLabel { background-color: #E0E0E0; }')
+            label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
+            label.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+            _layout.addWidget(label, i, 0)
 
-        radio_button2.clicked.connect(self.uncheck_radio_button_1)
-        radio_button1.clicked.connect(self.uncheck_radio_button_2)
-
-        radio_button1.clicked.connect(self.calculate_kms_by_radiobutton_1)
-        radio_button2.clicked.connect(self.calculate_kms_by_radiobutton_2)
-        radio_button1.clicked.connect(self.calculate_branch_pressure_by_radiobutton_1)
-        radio_button2.clicked.connect(self.calculate_branch_pressure_by_radiobutton_2)
-        radio_button1.clicked.connect(self.calculate_full_pressure_by_radiobutton_1)
-        radio_button2.clicked.connect(self.calculate_full_pressure_by_radiobutton_2)
-
-        _table.cellChanged.connect(self.set_sputnik_airflow_in_main_table)
-        _table.cellChanged.connect(self.set_deflector_pressure_in_main_table)
-
-        _table.cellChanged.connect(self.calculate_klapan_pressure_loss)
-        _table.cellChanged.connect(self.calculate_air_velocity)
-        _table.cellChanged.connect(self.calculate_diameter)
-        _table.cellChanged.connect(self.calculate_dynamic)
-        _table.cellChanged.connect(self.calculate_specific_pressure_loss)
-        _table.cellChanged.connect(self.calculate_m)
-        _table.cellChanged.connect(self.calculate_linear_pressure_loss)
-        _table.cellChanged.connect(self.calculate_local_pressure_loss)
-        _table.cellChanged.connect(self.calculate_sputnik_full_pressure_loss)
-        _table.cellChanged.connect(self.calculate_kms)
-        _table.cellChanged.connect(self.calculate_result_sputnik_pressure)
-        _table.cellChanged.connect(self.calculate_branch_pressure)
-        _table.cellChanged.connect(self.calculate_full_pressure)
-
-        _table.itemChanged.connect(self.validate_input_data_in_tables)
-
-        _layout.addWidget(_table)
-        _box.setLayout(_layout)
-        return _box
-
-
-    def create_main_table_box(self) -> object:
-        _box = QGroupBox(CONSTANTS.MAIN_TABLE.TITLE)
-        self.main_table_box = _box
-        style = self.box_style
-        _box.setStyleSheet(style)
-
-        _layout = QVBoxLayout()
-
-        self.main_table = QTableWidget(5, 22)
-        _table = self.main_table
-        _table.horizontalHeader().setStretchLastSection(True)
-        _table.setHorizontalHeaderLabels(CONSTANTS.MAIN_TABLE.HEADER)
-        _table.horizontalHeaderItem(4).setToolTip(CONSTANTS.MAIN_TABLE.TOOLTIP_L)
-        _table.setStyleSheet(self.table_style)
-        _table.verticalHeader().setVisible(False)
-        _table.setObjectName(CONSTANTS.MAIN_TABLE.NAME)
-
-        num_rows = _table.rowCount()
-        num_cols = _table.columnCount()
-
-        # устанавливаем виджет QTableWidgetItem для всех ячеек таблицы
-        for row in range(num_rows):
-            for col in range(num_cols):
-                _table.setItem(row, col, QTableWidgetItem())
-                _table.item(row, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-            if row == num_rows-1:
-                _table.item(row, 0).setBackground(QColor(255, 204, 204))
-            else:
-                _table.item(row, 0).setBackground(QColor(255, 255, 255))
-            _table.item(row, 0).setText(str(row+1))
-
-        # установка ширины столбцов
-        for col in range(num_cols):
-            match col:
-                case 0:
-                    _table.setColumnWidth(col, 50)
-                case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
-                    _table.setColumnWidth(col, 70)
-                case 4 | 5 | 6 | 7 | 8 | 9:
-                    _table.setColumnWidth(col, 60)
-                case 10 | 11:
-                    _table.setColumnWidth(col, 110)
-
-            # установка заливки для редактируемых столбцов
-            if col in (1, 2, 10, 11):
-                for row in range(num_rows):
-                    _table.item(row, col).setBackground(QColor(229, 255, 204))
-
-        _table.setColumnHidden(6, True)
-        self._clean_for_last_floor()
-
-        # обработчики
-        _table.cellChanged.connect(self.update_result)
-        _table.cellChanged.connect(self.update_height_column_in_main_table)
-
-        _table.cellChanged.connect(self.calculate_gravi_pressure)
-        _table.cellChanged.connect(self.calculate_air_velocity)
-        _table.cellChanged.connect(self.calculate_dynamic)
-        _table.cellChanged.connect(self.calculate_diameter)
-        _table.cellChanged.connect(self.calculate_specific_pressure_loss)
-        _table.cellChanged.connect(self.calculate_m)
-        _table.cellChanged.connect(self.calculate_linear_pressure_loss)
-        _table.cellChanged.connect(self.calculate_kms)
-        _table.cellChanged.connect(self.calculate_pass_pressure)
-        _table.cellChanged.connect(self.calculate_branch_pressure)
-        _table.cellChanged.connect(self.calculate_available_pressure)
-        _table.cellChanged.connect(self.calculate_height)
-        _table.cellChanged.connect(self.calculate_full_pressure)
-        _table.cellChanged.connect(self.set_full_air_flow_in_deflector)
-
-        _table.itemChanged.connect(self.validate_input_data_in_tables)
-        _table.itemChanged.connect(self.validate_last_floor_kms)
-
-        _table.setMinimumHeight(150)
-        _layout.addWidget(_table)
-        _box.setLayout(_layout)
-        _box.setFixedHeight(_table.sizeHint().height() + 200)
-        return _box
-
-
-    def open_manual(self):
-        if platform.system() == "Windows":
-            os.startfile(os.path.join(basedir, 'natural_air_system_manual.pdf'))
-
-
-    def validate_input_data_in_tables(self, item) -> None:
-        table = self.sender().objectName()
-        column = item.column()
-        if (table == 'sputnik' and column in (1, 2, 3, 4, 11)) or (table == 'main' and column in (1, 8, 9, 10, 11)):
-            # Allows values: whole numbers 0...2000
-            dimensions_pattern = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
-            # Allows values: 0...100 with or without one | two digit after separator
-            length_height_kms_pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
-            # Allows values: 0...100 with or without one | two digit after separator
-            kms_pattern = r'^-?(0\.\d*[1-9]|[1-9]\d*(\.\d+)?|1\.\d*[0-9]+)$'
-            match table:
-                case 'sputnik':
-                    match column:
+        for line in (2, 4):
+            for i in range(1, 14):
+                edit = QLineEdit()
+                edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                edit.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i, 72))
+                edit.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+                if i in (1, 2, 3, 4, 11):
+                    edit.setStyleSheet(input_edit_style)
+                    match i:
                         case 1:
                             # Allows values: 0...200 with or without one digit after separator
-                            pattern = r'^(?:\d{1,2}|1\d{2}|2\d{2})(?:\.\d)?$'
+                            regex = r'^(?:\d{1,2}|1\d{2}|2\d{2})(?:\.\d)?$'
                         case 2 | 11:
-                            pattern = length_height_kms_pattern
+                            # Allows values: 0...100 with or without one | two digit after separator
+                            regex = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
                         case 3 | 4:
-                            pattern = dimensions_pattern
+                            # Allows values: whole numbers 0...2000
+                            regex = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
+                    validator = QRegularExpressionValidator(regex)
+                    edit.setValidator(validator)
+                else:
+                    edit.setStyleSheet(read_only_edit_style)
+                    edit.setReadOnly(True)
 
-                    if not re.match(pattern, item.text()):
-                        item.setText('')
-                    else:
-                        item.setText(item.text())
+                match i:
+                    case 2 | 7 | 8:
+                        edit.textChanged.connect(self.calculate_sputnik_linear_pressure_loss)
+                    case 3 | 4:
+                        edit.textChanged.connect(self.calculate_sputnik_air_velocity)
+                        edit.textChanged.connect(self.calculate_sputnik_diameter)
+                        edit.textChanged.connect(self.calculate_sputnik_m)
+                        edit.textChanged.connect(self.calculate_kms)
+                        edit.textChanged.connect(self.copy_sputnik_dimensions)
+                    case 5:
+                        edit.textChanged.connect(self.calculate_sputnik_dynamic)
+                    case 6:
+                        edit.textChanged.connect(self.calculate_sputnik_specific_pressure_loss)
+                    case 10 | 11:
+                        edit.textChanged.connect(self.calculate_sputnik_local_pressure_loss)
+                    case 9 | 12:
+                        edit.textChanged.connect(self.calculate_sputnik_full_pressure_loss)
+                _layout.addWidget(edit, line, i)
+        for i in (3, 4):
+            _layout.itemAtPosition(4, i).widget().setStyleSheet(read_only_edit_style)
+            _layout.itemAtPosition(4, i).widget().setReadOnly(True)
 
-                case 'main':
-                    match column:
-                        case 1:
-                            pattern = length_height_kms_pattern
-                        case 8 | 9:
-                            pattern = kms_pattern
-                        case 10 | 11:
-                            pattern = dimensions_pattern
+        for i in (3, 5):
+            radio_button = QRadioButton()
+            radio_button.setToolTip(CONSTANTS.SPUTNIK_TABLE.RADIO_TOOLTIPS.get(i))
+            _layout.addWidget(radio_button, i, 14, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.radio_button1 = _layout.itemAtPosition(3, 14).widget()
+        self.radio_button2 = _layout.itemAtPosition(5, 14).widget()
+        self.radio_button1.setChecked(True)
+        
+        self.radio_button1.clicked.connect(self.set_sputnik_airflow_in_table_by_radiobutton_1)
+        self.radio_button2.clicked.connect(self.set_sputnik_airflow_in_table_by_radiobutton_2)
 
-                    if not re.match(pattern, item.text()):
-                        item.setText('')
-                    else:
-                        item.setText(item.text())
+        self.radio_button1.clicked.connect(self.calculate_kms_by_radiobutton_1)
+        self.radio_button2.clicked.connect(self.calculate_kms_by_radiobutton_2)
+        self.radio_button1.clicked.connect(self.calculate_full_pressure_by_radiobutton_1)
+        self.radio_button2.clicked.connect(self.calculate_full_pressure_by_radiobutton_2)
+        self.radio_button1.clicked.connect(self.calculate_branch_pressure_by_radiobutton_1)
+        self.radio_button2.clicked.connect(self.calculate_branch_pressure_by_radiobutton_2)
+
+        self.radio_button2.clicked.connect(self.uncheck_radio_button_1)
+        self.radio_button1.clicked.connect(self.uncheck_radio_button_2)
+
+        cell_2_1 = _layout.itemAtPosition(2, 1).widget()
+        cell_2_1.textChanged.connect(self.calculate_sputnik_air_velocity)
+        cell_2_1.textChanged.connect(self.set_sputnik_airflow_in_table)
+        cell_2_1.textChanged.connect(self.calculate_kms)
+        cell_2_1.textChanged.connect(self.calculate_sputnik_result_pressure)
+
+        cell_4_1 = _layout.itemAtPosition(4, 1).widget()
+        cell_4_1.textChanged.connect(self.calculate_sputnik_air_velocity)
+        cell_4_1.textChanged.connect(self.set_sputnik_airflow_in_table)
+        cell_4_1.textChanged.connect(self.calculate_kms)
+        cell_4_1.textChanged.connect(self.calculate_sputnik_result_pressure)
+
+        cell_2_13 = _layout.itemAtPosition(2, 13).widget()
+        cell_4_13 = _layout.itemAtPosition(4, 13).widget()
+        cell_2_13.textChanged.connect(self.calculate_sputnik_result_pressure)
+        cell_4_13.textChanged.connect(self.calculate_sputnik_result_pressure)
+
+        self.cell_3_13 = _layout.itemAtPosition(3, 13).widget()
+        self.cell_5_13 = _layout.itemAtPosition(5, 13).widget()
+        self.cell_3_13.textChanged.connect(self.calculate_full_pressure)
+        self.cell_5_13.textChanged.connect(self.calculate_full_pressure)
+
+        cell_2_5 = _layout.itemAtPosition(2, 5).widget()
+        cell_2_5.textChanged.connect(self.calculate_branch_pressure)
+        cell_4_5 = _layout.itemAtPosition(4, 5).widget()
+        cell_4_5.textChanged.connect(self.calculate_branch_pressure)
+
+        _layout.setSpacing(3)
+        _box.setLayout(_layout)
+        return _box
+
+
+    def copy_sputnik_dimensions(self, value) -> None:
+        sputnik = self.sputnik
+        a = sputnik.itemAtPosition(2, 3).widget().text()
+        b = sputnik.itemAtPosition(2, 4).widget().text()
+        sputnik.itemAtPosition(4, 3).widget().setText(a)
+        sputnik.itemAtPosition(4, 4).widget().setText(b)
+
+
+    def create_header(self) -> object:
+        _widget = QWidget()
+        _layout = QGridLayout()
+        _layout.setObjectName(CONSTANTS.MAIN_TABLE.HEADER_NAME)
+        self.header = _layout
+        labels = CONSTANTS.MAIN_TABLE.LABELS
+
+        for i in range(len(labels)):
+            label = QLabel(labels[i])
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            match i:
+                case 6:
+                    label.setStyleSheet('QLabel { background-color: #CCCCFF; }')
+                case _:
+                    label.setStyleSheet('QLabel { background-color: #E0E0E0; }')
+
+            match i:
+                case 0:
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 4 | 5 | 6 | 7 | 8 | 9:
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 10 | 11:
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+            label.setFixedHeight(CONSTANTS.MAIN_TABLE.HEADER_HEIGHT)
+
+            match i:
+                case 4:
+                    label.setToolTip(CONSTANTS.MAIN_TABLE.TOOLTIP_H)
+
+            _layout.addWidget(label, 0, i)
+
+        _layout.itemAtPosition(0, 6).widget().hide()
+
+        _layout.setSpacing(3)
+        _widget.setLayout(_layout)
+        return _widget
+
+
+    def create_row(self) -> object:
+        self.rows_count += 1
+        _widget = QWidget()
+        _layout = QGridLayout()
+        _layout.setObjectName(CONSTANTS.MAIN_TABLE.ROW_NAME)
+
+        input_edit_style = 'QLineEdit { background-color: #E5FFCC }'
+        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0 }'
+
+        for i in range(len(CONSTANTS.MAIN_TABLE.LABELS)):
+            edit = QLineEdit()
+            edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            edit.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+            match i:
+                case 0:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 4 | 5 | 6 | 7 | 8 | 9:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 10 | 11:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+
+            match i:
+                case 0:
+                    edit.setStyleSheet('QLineEdit { background-color: #E0E0E0; border: 0 }')
+                case 1 | 2 | 10 | 11:
+                    edit.setStyleSheet(input_edit_style)
+                case 6:
+                    edit.setStyleSheet('QLineEdit { background-color: transparent; border: 0 }')
+                    edit.setReadOnly(True)
+                case _:
+                    edit.setReadOnly(True)
+                    edit.setStyleSheet(read_only_edit_style)
+
+            match i:
+                case 1:
+                    edit.textChanged.connect(self.calculate_height)
+                    edit.textChanged.connect(self.calculate_linear_pressure_loss)
+                case 3:
+                    edit.textChanged.connect(self.set_full_air_flow_in_deflector)
+                    edit.textChanged.connect(self.calculate_air_velocity)
+                    edit.textChanged.connect(self.calculate_kms)
+                case 4:
+                    edit.textChanged.connect(self.calculate_gravi_pressure)
+                case 5 | 6:
+                    edit.textChanged.connect(self.calculate_available_pressure)
+                case 7 | 20:
+                    edit.textChanged.connect(self.calculate_result)
+                case 8:
+                    edit.textChanged.connect(self.calculate_pass_pressure)
+                case 9:
+                    edit.textChanged.connect(self.calculate_branch_pressure)
+                case 10 | 11:
+                    edit.textChanged.connect(self.calculate_air_velocity)
+                    edit.textChanged.connect(self.calculate_diameter)
+                    edit.textChanged.connect(self.calculate_m)
+                    edit.textChanged.connect(self.calculate_kms)
+                case 12:
+                    edit.textChanged.connect(self.calculate_dynamic)
+                    edit.textChanged.connect(self.calculate_specific_pressure_loss)
+                    edit.textChanged.connect(self.calculate_pass_pressure)
+                case 13:
+                    edit.textChanged.connect(self.calculate_specific_pressure_loss)
+                case 14 | 15:
+                    edit.textChanged.connect(self.calculate_linear_pressure_loss)
+                case 16 | 18 | 19:
+                    edit.textChanged.connect(self.calculate_full_pressure)
+                case 17:
+                    edit.textChanged.connect(self.calculate_specific_pressure_loss)
+
+            if i in (1, 10, 11):
+                match i:
+                    case 1:
+                        # Allows values: 0...100 with or without one | two digit after separator
+                        regex = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
+                    case 10 | 11:
+                        # Allows values: whole numbers 0...2000
+                        regex = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
+                validator = QRegularExpressionValidator(regex)
+                edit.setValidator(validator)
+            _layout.addWidget(edit, 0, i)
+
+        _layout.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
+        _layout.itemAtPosition(0, 6).widget().hide()
+
+        _layout.setSpacing(3)
+        _widget.setLayout(_layout)
+        return _widget
+
+
+    def create_last_row(self) -> object:
+        _widget = QWidget()
+        _layout = QGridLayout()
+        self.last_row = _layout
+        _layout.setObjectName(CONSTANTS.MAIN_TABLE.LAST_ROW_NAME)
+
+        input_edit_style = 'QLineEdit { background-color: #E5FFCC }'
+        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0 }'
+
+        for i in range(len(CONSTANTS.MAIN_TABLE.LABELS)):
+            edit = QLineEdit()
+            edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            edit.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+            match i:
+                case 0:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 4 | 5 | 6 | 7 | 8 | 9:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 10 | 11:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+
+            match i:
+                case 0:
+                    edit.setStyleSheet('QLineEdit { background-color: #FFCCCC; border: 0 }')
+                case 1 | 2 | 8 | 9 | 10 | 11:
+                    edit.setStyleSheet(input_edit_style)
+                case 6:
+                    edit.setStyleSheet('QLineEdit { background-color: #CCCCFF; }')
+                case _:
+                    edit.setReadOnly(True)
+                    edit.setStyleSheet(read_only_edit_style)
+
+            match i:
+                case 1:
+                    edit.textChanged.connect(self.calculate_height)
+                    edit.textChanged.connect(self.calculate_linear_pressure_loss)
+                case 3:
+                    edit.textChanged.connect(self.calculate_air_velocity)
+                case 4:
+                    edit.textChanged.connect(self.calculate_gravi_pressure)
+                case 5 | 6:
+                    edit.textChanged.connect(self.calculate_available_pressure)
+                case 8:
+                    edit.textChanged.connect(self.calculate_pass_pressure)
+                case 7 | 20:
+                    edit.textChanged.connect(self.calculate_result)
+                case 9:
+                    edit.textChanged.connect(self.calculate_branch_pressure)
+                case 10 | 11:
+                    edit.textChanged.connect(self.calculate_air_velocity)
+                    edit.textChanged.connect(self.calculate_diameter)
+                    edit.textChanged.connect(self.calculate_m)
+                case 12:
+                    edit.textChanged.connect(self.calculate_dynamic)
+                    edit.textChanged.connect(self.calculate_specific_pressure_loss)
+                    edit.textChanged.connect(self.calculate_pass_pressure)
+                case 13:
+                    edit.textChanged.connect(self.calculate_specific_pressure_loss)
+                case 14 | 15:
+                    edit.textChanged.connect(self.calculate_linear_pressure_loss)
+                case 16 | 18 | 19:
+                    edit.textChanged.connect(self.calculate_full_pressure)
+                case 17:
+                    edit.textChanged.connect(self.calculate_specific_pressure_loss)
+
+            if i in (1, 8, 9, 10, 11):
+                match i:
+                    case 1:
+                        # Allows values: 0...100 with or without one | two digit after separator
+                        regex = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
+                    case 8 | 9:
+                        # Allows values: 0...100 with or without one | two digit after separator
+                        regex = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
+                    case 10 | 11:
+                        # Allows values: whole numbers 0...2000
+                        regex = r'^([1-9]\d{0,2}|1\d{3}|2000)?$'
+                validator = QRegularExpressionValidator(regex)
+                edit.setValidator(validator)
+            _layout.addWidget(edit, 0, i)
+
+        _layout.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
+        _layout.itemAtPosition(0, 6).widget().hide()
+
+        _layout.setSpacing(3)
+        _widget.setLayout(_layout)
+        return _widget
 
 
     def add_row(self) -> None:
-        progress = QProgressDialog("Добавление строки...", None, 0, 100, self)
-        progress.setWindowTitle("Подождите...жуём")
-        progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.setValue(0)
-        progress.setMaximum(100)
-        progress.show()
-
-        table = self.main_table
-        num_rows = table.rowCount()
-        table.insertRow(num_rows)
-        green_cols = (1, 2, 10, 11)
-
-        # заливка зеленым ячеек для ввода
-        for col in green_cols:
-            item = table.item(num_rows, col)
-            if item is not None:
-                item.setBackground(QColor(229, 255, 204))
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            else:
-                green_item = QTableWidgetItem()
-                green_item.setBackground(QColor(229, 255, 204))
-                green_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                table.setItem(num_rows, col, green_item)
-            progress.setValue(progress.value() + 10)
-
-        # вставка высоты этажа
-        if self.floor_height_widget.text() != '':
-            table.item(num_rows, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
-            table.item(num_rows, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.update_air_flow_column_in_main_table_after_add_row()
-
-        if self.main_table_box.height() < 600:
-            self.main_table_box.setFixedHeight(self.main_table_box.height() + 30)
-
-        self._clean_for_last_floor()
-        progress.close()
+        new_row = self.create_row()
+        self.main_box.insertWidget(2, new_row)
+        self.last_row.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
+        self.set_base_floor_height_in_table()
 
 
     def delete_row(self) -> None:
-        table = self.main_table
-        selected_row = table.currentRow()
-        num_rows = table.rowCount()
-        if num_rows > 2 or selected_row != 0:
-            table.removeRow(selected_row)
-
-            if num_rows < 15:
-                self.main_table_box.setFixedHeight(self.main_table_box.height() - 30)
-
-            start = time.time()
-            self._clean_for_last_floor()
-            end = time.time() - start
-            print(f"|---> stop 1: {end}")
-
-
-
-            init_flow = table.item(0, 3).text()
-            start = time.time()
-            self.fill_air_flow_column_in_main_table(init_flow)
-            end = time.time() - start
-            print(f"|---> stop 2: {end}")
-
-
-
-            self._fill_height_column_in_main_table(num_rows)
+        row_for_delete = self.input_for_delete.text()
+        if all([row_for_delete, self.rows_count > 1]):
+            row_for_delete = int(row_for_delete)
+            if row_for_delete <= self.rows_count:
+                rows = self.get_main_rows()
+                row = rows.pop(len(rows) - row_for_delete)
+                parent_widget = row.parent()
+                parent_widget.setParent(None)
+                parent_widget.deleteLater()
+                self.rows_count -= 1
+                self.input_for_delete.setText('')
+                self.update_floor_number()
+                self.calculate_height()
+            elif row_for_delete == self.rows_count + 1:
+                QMessageBox.critical(self, 'Ошибка', 'Последний этаж удалить нельзя')
+            else:
+                QMessageBox.critical(self, 'Ошибка', 'Такого этажа нет')
+        elif all([row_for_delete, self.rows_count == 1]):
+            QMessageBox.critical(self, 'Ошибка', 'Больше нет этажей для удаления')
+        else:
+            QMessageBox.critical(self, 'Ошибка', 'Не указан этаж для удаления')
 
 
     def uncheck_radio_button_1(self) -> None:
@@ -604,203 +735,28 @@ class MainWindow(QMainWindow):
         self.radio_button2.setChecked(False)
 
 
-    def set_floor_number_in_main_table(self) -> None:
-        table = self.main_table
-        num_rows = table.rowCount()
-        for row in range(num_rows):
-            if row == num_rows-1:
-                table.setItem(row, 0, QTableWidgetItem())
-                table.item(row, 0).setBackground(QColor(255, 204, 204))
-            else:
-                table.item(row, 0).setBackground(QColor(255, 255, 255))
-            table.item(row, 0).setText(str(row+1))
-            table.item(row, 0).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-
-    def set_klapan_air_flow_in_label(self, value) -> None:
-        klapan_flow = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(value)
-        self.klapan_air_flow_label.setText(f'{klapan_flow} м<sup>3</sup>/ч')
-
-
-    def set_sputnik_airflow_in_main_table_by_radiobutton_1(self, checked) -> None:
-        if checked:
-            one_side_flow = self.sputnik_table.item(1, 1).text()
-
-            if one_side_flow:
-                self.main_table.item(0, 3).setText(str(int(one_side_flow)))
-                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(one_side_flow)
-            else:
-                self.main_table.item(0, 3).setText('')
-                self.clean_air_flow_column_in_main_table()
-
-
-    def set_sputnik_airflow_in_main_table_by_radiobutton_2(self, checked) -> None:
-        if checked:
-            one_side_flow = self.sputnik_table.item(1, 1).text()
-            two_side_flow = self.sputnik_table.item(3, 1).text()
-
-            if all([one_side_flow, two_side_flow]):
-                flow = int(one_side_flow) + int(two_side_flow)
-                self.main_table.item(0, 3).setText(str(flow))
-                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(flow)
-            else:
-                self.main_table.item(0, 3).setText('')
-                self.clean_air_flow_column_in_main_table()
-
-
-    def set_sputnik_airflow_in_main_table(self, row, column) -> None:
-        flows_cells = ((1, 1), (3, 1))
-        one_side_flow = self.sputnik_table.item(1, 1).text()
-        two_side_flow = self.sputnik_table.item(3, 1).text()
-
-        if (row, column) in flows_cells:
-            if all([self.radio_button1.isChecked(), one_side_flow]):
-                self.main_table.item(0, 3).setText(str(int(one_side_flow)))
-                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(one_side_flow)
-            elif all([self.radio_button2.isChecked(), one_side_flow, two_side_flow]):
-                flow = int(one_side_flow) + int(two_side_flow)
-                self.main_table.item(0, 3).setText(str(flow))
-                self.main_table.item(0, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.main_table.item(0, 3).setBackground(QColor(255, 255, 255))
-                self.fill_air_flow_column_in_main_table(flow)
-            else:
-                self.main_table.item(0, 3).setText('')
-                self.clean_air_flow_column_in_main_table()
-
-
-    def set_base_floor_height_in_main_table(self) -> None:
-        num_rows = self.main_table.rowCount()
-        base_floor_height = self.floor_height_widget.text()
-        if base_floor_height:
-            all_values = []
-            # собираем все значения высоты этажей
-            for row in range(num_rows):
-                all_values.append(self.main_table.item(row, 1).text())
-
-            # если значения по этажам не менялись - меняем на новое
-            if len(set(all_values)) == 1:
-                for row in range(num_rows):
-                    self.main_table.item(row, 1).setText("{:.2f}".format(float(base_floor_height)))
-                    self.main_table.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            else:
-                # определяем максимально встречающееся значение, т.е. ранее установленное значение которое не было изменено
-                current_height = max(set(all_values), key=all_values.count)
-                # заменяем все базовые значения на новое, кастомные значения сохраняются
-                for row in range(num_rows):
-                    if self.main_table.item(row, 1).text() == current_height:
-                        self.main_table.item(row, 1).setText("{:.2f}".format(float(self.floor_height_widget.text())))
-                        self.main_table.item(row, 1).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        else:
-            for row in range(num_rows):
-                self.main_table.item(row, 1).setText('')
-
-
-    def update_height_column_in_main_table(self, row, column) -> None:
-        base_floor_height = self.floor_height_widget.text()
-        current_floor_height = self.main_table.item(row, 1)
-        if current_floor_height and current_floor_height.text() != '':
-            current_floor_height = current_floor_height.text()
-            if column == 1 and current_floor_height != base_floor_height:
-                num_rows = self.main_table.rowCount()
-                self._fill_height_column_in_main_table(num_rows, row)
-
-
-    def update_result(self, row, column) -> None:
-        table = self.main_table
-        if column in (7, 20):
-            available_pressure = table.item(row, 7)
-            full_pressure = table.item(row, 20)
-
-            if all([available_pressure, full_pressure]) and all([available_pressure.text() != '', full_pressure.text() != '']):
-                available_pressure = float(available_pressure.text())
-                full_pressure = float(full_pressure.text())
-
-                if available_pressure > full_pressure:
-                    result = 'OK'
-                    item = QTableWidgetItem(result)
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    table.setItem(row, 21, item)
-                    table.item(row, 21).setBackground(QColor(229, 255, 204))
-                else:
-                    result = 'Тяги нет!'
-                    item = QTableWidgetItem(result)
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    table.setItem(row, 21, item)
-                    table.item(row, 21).setBackground(QColor(255, 153, 153))
-            else:
-                result = ''
-                item = QTableWidgetItem(result)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                table.setItem(row, 21, item)
-                table.item(row, 21).setBackground(QColor(255, 255, 255))
-
-
-    def calculate_gravi_pressure(self, row=False, column=False) -> None:
-        table = self.main_table
-        sender = self.sender()
-        if isinstance(sender, QTableWidget):
-            # если изменения данных произошли в таблице
-            if column == 4:
-                temperature = self.temperature_widget.text()
-                item_4 = table.item(row, 4)
-                if item_4 and item_4.text() != '':
-                    value_4 = float(item_4.text())
-                    temperature = float(temperature)
-                    pressure = 0.9 * CONSTANTS.ACCELERATION_OF_GRAVITY * value_4 * ((353 / (273 + 5)) - (353 / (273 + temperature)))
-                    pressure = "{:.2f}".format(round(pressure, 2))
-                    table.setItem(row, 5, QTableWidgetItem(pressure))
-                    table.item(row, 5).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    table.setItem(row, 5, QTableWidgetItem())
-                    table.item(row, 5).setText('')
-        else:
-            # если изменилась температура воздуха
-            temperature = row
-            rows = table.rowCount()
-            for row in range(rows):
-                item_4 = table.item(row, 4)
-                if item_4 and item_4.text() != '':
-                    value_4 = float(item_4.text())
-                    temperature = float(temperature)
-                    pressure = 0.9 * CONSTANTS.ACCELERATION_OF_GRAVITY * value_4 * ((353 / (273 + 5)) - (353 / (273 + temperature)))
-                    pressure = "{:.2f}".format(round(pressure, 2))
-                    table.item(row, 5).setText(pressure)
-                    table.item(row, 5).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    table.setItem(row, 5, QTableWidgetItem())
-                    table.item(row, 5).setText('')
-
-
-    def calculate_klapan_pressure_loss(self, row=False, column=False) -> None:
-        sender = self.sender()
-        if isinstance(sender, QComboBox):
-            klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(row)
-            hand_klapan_flow = self.klapan_input.text()
-            current_klapan_flow = self.sputnik_table.item(0, 1).text()
-            self._calculate_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
-
-        elif isinstance(sender, QLineEdit):
-            klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
-            hand_klapan_flow = row
-            current_klapan_flow = self.sputnik_table.item(0, 1).text()
-            self._calculate_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
-
-        elif isinstance(sender, QTableWidget):
-            if row == 0 and column == 1:
-                klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
+    def calculate_sputnik_klapan_pressure_loss(self, value) -> None:
+        name = self.sender().objectName()
+        match name:
+            case 'klapan_flow':
+                current_klapan_flow = value
                 hand_klapan_flow = self.klapan_input.text()
-                current_klapan_flow = self.sputnik_table.item(0, 1).text()
-                self._calculate_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
+                klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
+                self._calculate_sputnik_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
+            case 'klapan_widget':
+                current_klapan_flow = self.klapan_flow.text()
+                hand_klapan_flow = self.klapan_input.text()
+                klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(value)
+                self._calculate_sputnik_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
+            case 'klapan_input':
+                current_klapan_flow = self.klapan_flow.text()
+                hand_klapan_flow = value
+                klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())
+                self._calculate_sputnik_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
 
 
-    def _calculate_klapan_pressure_loss(self, klapan_widget_value, hand_klapan_flow, current_klapan_flow) -> None:
-        table = self.sputnik_table
+    def _calculate_sputnik_klapan_pressure_loss(self, klapan_widget_value, hand_klapan_flow, current_klapan_flow) -> None:
+        item = self.sputnik.itemAtPosition(1, 13).widget()
         if hand_klapan_flow or klapan_widget_value == '--':
             klapan_flow = hand_klapan_flow
         else:
@@ -809,958 +765,394 @@ class MainWindow(QMainWindow):
         if all([current_klapan_flow, klapan_flow]):
             current_klapan_flow = int(current_klapan_flow)
             klapan_flow = int(klapan_flow)
-            pressure_loss = 10 * pow(current_klapan_flow / klapan_flow, 2)
-            pressure_loss = "{:.2f}".format(round(pressure_loss, 2))
-            table.item(0, 13).setText(pressure_loss)
-            table.item(0, 13).setBackground(QColor(153, 255, 255))
+            result = 10 * pow(current_klapan_flow / klapan_flow, 2)
+            result = "{:.3f}".format(round(result, 3))
+            item.setText(result)
         else:
-            table.item(0, 13).setText('')
-            table.item(0, 13).setBackground(QColor(255, 255, 255))
+            item.setText('')
 
 
-    def calculate_air_velocity(self, row, column) -> None:
-        sputnik_table = self.sputnik_table
-        main_table = self.main_table
-        table = self.sender().objectName()
-        match table:
-            case CONSTANTS.SPUTNIK_TABLE.NAME:
-                columns = (1, 3, 4)
-                if column in columns:
-                    air_flow = sputnik_table.item(row, 1).text()
-                    a = sputnik_table.item(row, 3).text()
-                    b = sputnik_table.item(row, 4).text()
-                    if all([air_flow, a, b]):
-                        velocity = float(air_flow) / (3_600 * ((float(a) * float(b) / 1_000_000)))
-                        velocity = "{:.2f}".format(round(velocity, 2))
-                        sputnik_table.item(row, 5).setText(velocity)
-                    elif all([air_flow, a]):
-                        velocity = float(air_flow) / (3_600 * (3.1415 * (float(a) / 1_000) * (float(a) / 1_000) / 4))
-                        velocity = "{:.2f}".format(round(velocity, 2))
-                        sputnik_table.item(row, 5).setText(velocity)
-                    else:
-                        sputnik_table.item(row, 5).setText('')
-            case CONSTANTS.MAIN_TABLE.NAME:
-                columns = (3, 10, 11)
-                if column in columns:
-                    air_flow = main_table.item(row, 3)
-                    a = main_table.item(row, 10)
-                    b = main_table.item(row, 11)
-                    if all([air_flow is not None, a is not None, b is not None]) and all([air_flow.text() != '', a.text() != '', b.text() != '']):
-                        velocity = float(air_flow.text()) / (3_600 * ((float(a.text()) * float(b.text()) / 1_000_000)))
-                        velocity = "{:.2f}".format(round(velocity, 2))
-                        main_table.item(row, 12).setText(velocity)
-                        main_table.item(row, 12).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    elif all([air_flow is not None, a is not None]) and all([air_flow.text() != '', a.text() != '']):
-                        velocity = float(air_flow.text()) / (3_600 * (3.1415 * (float(a.text()) / 1_000) * (float(a.text()) / 1_000) / 4))
-                        velocity = "{:.2f}".format(round(velocity, 2))
-                        main_table.item(row, 12).setText(velocity)
-                        main_table.item(row, 12).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    else:
-                        main_table.setItem(row, 12, QTableWidgetItem())
-                        main_table.item(row, 12).setText('')
+    def calculate_sputnik_air_velocity(self, value) -> None:
+        sputnik = self.sputnik
+        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
+
+        air_flow = sputnik.itemAtPosition(row, 1).widget().text()
+        a = sputnik.itemAtPosition(row, 3).widget().text()
+        b = sputnik.itemAtPosition(row, 4).widget().text()
+        if all([air_flow, a, b]):
+            result = float(air_flow) / (3_600 * ((float(a) * float(b) / 1_000_000)))
+            result = "{:.2f}".format(round(result, 2))
+            sputnik.itemAtPosition(row, 5).widget().setText(result)
+        elif all([air_flow, a]):
+            result = float(air_flow) / (3_600 * (3.1415 * (float(a) / 1_000) * (float(a) / 1_000) / 4))
+            result = "{:.2f}".format(round(result, 2))
+            sputnik.itemAtPosition(row, 5).widget().setText(result)
+        else:
+            sputnik.itemAtPosition(row, 5).widget().setText('')
 
 
-    def calculate_diameter(self, row, column) -> None:
-        sputnik_table = self.sputnik_table
-        main_table = self.main_table
-        table = self.sender().objectName()
-        match table:
-            case CONSTANTS.SPUTNIK_TABLE.NAME:
-                columns = (3, 4)
-                if column in columns:
-                    a = sputnik_table.item(row, 3).text()
-                    b = sputnik_table.item(row, 4).text()
-                    if all([a, b]):
-                        diameter = (2 * float(a) * float(b) / (float(a) + float(b)) / 1_000)
-                        diameter = "{:.3f}".format(round(diameter, 3))
-                        sputnik_table.item(row, 6).setText(diameter)
-                        sputnik_table.item(row, 6).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    elif a:
-                        diameter = float(a) / 1_000
-                        diameter = "{:.3f}".format(round(diameter, 3))
-                        sputnik_table.item(row, 6).setText(diameter)
-                    else:
-                        sputnik_table.item(row, 6).setText('')
-            case CONSTANTS.MAIN_TABLE.NAME:
-                columns = (10, 11)
-                if column in columns:
-                    a = main_table.item(row, 10)
-                    b = main_table.item(row, 11)
-                    if all([a is not None, b is not None]) and all([a.text() != '', b.text() != '']):
-                        diameter = (2 * float(a.text()) * float(b.text()) / (float(a.text()) + float(b.text())) / 1_000)
-                        diameter = "{:.3f}".format(round(diameter, 3))
-                        main_table.item(row, 13).setText(diameter)
-                        main_table.item(row, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    elif a is not None and a.text() != '':
-                        diameter = float(a.text()) / 1_000
-                        diameter = "{:.3f}".format(round(diameter, 3))
-                        main_table.item(row, 13).setText(diameter)
-                        main_table.item(row, 13).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    else:
-                        main_table.setItem(row, 13, QTableWidgetItem())
-                        main_table.item(row, 13).setText('')
+    def calculate_sputnik_diameter(self, value) -> None:
+        sputnik = self.sputnik
+        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
+
+        a = sputnik.itemAtPosition(row, 3).widget().text()
+        b = sputnik.itemAtPosition(row, 4).widget().text()
+        if all([a, b]):
+            diameter = (2 * float(a) * float(b) / (float(a) + float(b)) / 1_000)
+            diameter = "{:.3f}".format(round(diameter, 3))
+            sputnik.itemAtPosition(row, 6).widget().setText(diameter)
+        elif a:
+            diameter = float(a) / 1_000
+            diameter = "{:.3f}".format(round(diameter, 3))
+            sputnik.itemAtPosition(row, 6).widget().setText(diameter)
+        else:
+            sputnik.itemAtPosition(row, 6).widget().setText('')
 
 
-    def calculate_dynamic(self, row=False, column=False) -> None:
-        sputnik_table = self.sputnik_table
-        main_table = self.main_table
-        sender = self.sender()
-        table = sender.objectName()
-        if isinstance(sender, QTableWidget):
-            # если изменения данных произошли в таблице
-            match table:
-                case CONSTANTS.SPUTNIK_TABLE.NAME:
-                    if column == 5:
-                        temperature = self.temperature_widget.text()
-                        velocity = sputnik_table.item(row, 5).text()
-                        if all([temperature, velocity]):
+    def calculate_sputnik_specific_pressure_loss(self, value) -> None:
+        sputnik = self.sputnik
+        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
+        name = self.sender().objectName()
+
+        match name:
+            case 'temperature' | 'surface':
+                temperature = self.temperature_widget.text()
+                surface = self.surface_widget.text()
+                for row in (2, 4):
+                    velocity = sputnik.itemAtPosition(row, 5).widget().text()
+                    diameter = sputnik.itemAtPosition(row, 6).widget().text()
+                    dynamic = sputnik.itemAtPosition(row, 10).widget().text()
+                    if all([temperature, diameter, velocity, surface, dynamic]):
+                        try:
                             temperature = float(temperature)
                             velocity = float(velocity)
-                            density = 353 / (273.15 + temperature)
-                            dynamic = velocity * velocity * density / 2
-                            dynamic = "{:.2f}".format(round(dynamic, 2))
-                            sputnik_table.item(row, 10).setText(dynamic)
-                        else:
-                            sputnik_table.item(row, 10).setText('')
-                            sputnik_table.item(row, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                case CONSTANTS.MAIN_TABLE.NAME:
-                    if column == 12:
-                        temperature = self.temperature_widget.text()
-                        velocity = main_table.item(row, 12).text()
-                        if all([temperature, velocity]):
-                            temperature = float(temperature)
-                            velocity = float(velocity)
-                            density = 353 / (273.15 + temperature)
-                            dynamic = velocity * velocity * density / 2
-                            dynamic = "{:.2f}".format(round(dynamic, 2))
-                            main_table.item(row, 17).setText(dynamic)
-                            main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                        else:
-                            main_table.setItem(row, 17, QTableWidgetItem())
-                            main_table.item(row, 17).setText('')
-                            main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        else:
-            # если изменилась температура воздуха
-            temperature = row
-            rows_sputnik = (1, 3)
-            for row in rows_sputnik:
-                velocity = sputnik_table.item(row, 5).text()
-                if all([temperature, velocity]):
-                    temperature = float(temperature)
-                    velocity = float(velocity)
-                    density = 353 / (273.15 + temperature)
-                    dynamic = velocity * velocity * density / 2
-                    dynamic = "{:.2f}".format(round(dynamic, 2))
-                    sputnik_table.item(row, 10).setText(dynamic)
-                    sputnik_table.item(row, 10).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    sputnik_table.item(row, 10).setText('')
-
-            rows_main = main_table.rowCount()
-            for row in range(rows_main):
-                velocity = main_table.item(row, 12).text()
-                if all([temperature, velocity]):
-                    temperature = float(temperature)
-                    velocity = float(velocity)
-                    density = 353 / (273.15 + temperature)
-                    dynamic = velocity * velocity * density / 2
-                    dynamic = "{:.2f}".format(round(dynamic, 2))
-                    main_table.item(row, 17).setText(dynamic)
-                else:
-                    main_table.item(row, 17).setText('')
-                    main_table.item(row, 17).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-
-    def calculate_specific_pressure_loss(self, row=False, column=False) -> None:
-        sputnik_table = self.sputnik_table
-        main_table = self.main_table
-        sender = self.sender()
-        name = sender.objectName()
-        if isinstance(sender, QTableWidget):
-            match name:
-                case CONSTANTS.SPUTNIK_TABLE.NAME:
-                    if column in (6, 10):
-                        temperature = self.temperature_widget.text()
-                        surface = self.surface_widget.text()
-                        velocity = sputnik_table.item(row, 5).text()
-                        diameter = sputnik_table.item(row, 6).text()
-                        dynamic = sputnik_table.item(row, 10)
-                        if all([temperature, diameter, velocity, surface, dynamic]):
-                            try:
-                                temperature = float(temperature)
-                                velocity = float(velocity)
-                                diameter = float(diameter)
-                                surface = float(surface)
-                                dynamic = float(dynamic.text())
-                                mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
-                                density = 353 / (273.15 + temperature)
-                                v = mu / density
-                                re = velocity * diameter / v
-                                lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
-                                resistivity = (lam / diameter) * dynamic
-                                resistivity = "{:.4f}".format(round(resistivity, 4))
-                                sputnik_table.item(row, 7).setText(resistivity)
-                            except ZeroDivisionError:
-                                sputnik_table.item(row, 7).setText('')
-                        else:
-                            sputnik_table.item(row, 7).setText('')
-                case CONSTANTS.MAIN_TABLE.NAME:
-                    if column in (13, 17):
-                        temperature = self.temperature_widget.text()
-                        surface = self.surface_widget.text()
-                        velocity = main_table.item(row, 12)
-                        diameter = main_table.item(row, 13)
-                        dynamic = main_table.item(row, 17)
-                        if all([temperature, diameter, velocity, surface, dynamic]) and all([temperature != '', diameter.text() != '', velocity.text() != '', surface != '', dynamic.text() != '']):
-                            temperature = float(temperature)
+                            diameter = float(diameter)
                             surface = float(surface)
-                            velocity = float(velocity.text())
-                            diameter = float(diameter.text())
-                            dynamic = float(dynamic.text())
+                            dynamic = float(dynamic)
                             mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
                             density = 353 / (273.15 + temperature)
-                            try:
-                                v = mu / density
-                                re = velocity * diameter / v
-                                lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
-                                resistivity = (lam / diameter) * dynamic
-                                resistivity = "{:.4f}".format(round(resistivity, 4))
-                                main_table.item(row, 14).setText(resistivity)
-                                main_table.item(row, 14).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                            except ZeroDivisionError:
-                                QMessageBox.warning(None, 'Внимание', 'This is a warning message')
-                                main_table.setItem(row, 14, QTableWidgetItem())
-                                main_table.item(row, 14).setText('')
-                        else:
-                            main_table.setItem(row, 14, QTableWidgetItem())
-                            main_table.item(row, 14).setText('')
-        elif isinstance(sender, QLineEdit) and name == 'surface':
-            # если изменилась шероховатость
-            surface = row
-            rows_sputnik = (1, 3)
-            for row in rows_sputnik:
+                            v = mu / density
+                            re = velocity * diameter / v
+                            lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
+                            result = (lam / diameter) * dynamic
+                            result = "{:.4f}".format(round(result, 4))
+                            sputnik.itemAtPosition(row, 7).widget().setText(result)
+                        except ZeroDivisionError:
+                            sputnik.itemAtPosition(row, 7).widget().setText('')
+                    else:
+                        sputnik.itemAtPosition(row, 7).widget().setText('')
+            case _:
                 temperature = self.temperature_widget.text()
-                velocity = sputnik_table.item(row, 5).text()
-                diameter = sputnik_table.item(row, 6).text()
-                dynamic = sputnik_table.item(row, 10).text()
+                surface = self.surface_widget.text()
+                velocity = sputnik.itemAtPosition(row, 5).widget().text()
+                diameter = sputnik.itemAtPosition(row, 6).widget().text()
+                dynamic = sputnik.itemAtPosition(row, 10).widget().text()
                 if all([temperature, diameter, velocity, surface, dynamic]):
+                    try:
+                        temperature = float(temperature)
+                        velocity = float(velocity)
+                        diameter = float(diameter)
+                        surface = float(surface)
+                        dynamic = float(dynamic)
+                        mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
+                        density = 353 / (273.15 + temperature)
+                        v = mu / density
+                        re = velocity * diameter / v
+                        lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
+                        result = (lam / diameter) * dynamic
+                        result = "{:.4f}".format(round(result, 4))
+                        sputnik.itemAtPosition(row, 7).widget().setText(result)
+                    except ZeroDivisionError:
+                        sputnik.itemAtPosition(row, 7).widget().setText('')
+                else:
+                    sputnik.itemAtPosition(row, 7).widget().setText('')
+
+
+    def calculate_sputnik_dynamic(self, value) -> None:
+        sputnik = self.sputnik
+        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
+        name = self.sender().objectName()
+
+        if name == 'temperature':
+            temperature = value
+            for row in (2, 4):
+                velocity = sputnik.itemAtPosition(row, 5).widget().text()
+                if all([temperature, velocity]):
                     temperature = float(temperature)
                     velocity = float(velocity)
-                    diameter = float(diameter)
-                    surface = float(surface)
-                    dynamic = float(dynamic)
-                    mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
                     density = 353 / (273.15 + temperature)
-                    v = mu / density
-                    re = velocity * diameter / v
-                    lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
-                    resistivity = (lam / diameter) * dynamic
-                    resistivity = "{:.4f}".format(round(resistivity, 4))
-                    sputnik_table.item(row, 7).setText(resistivity)
+                    result = velocity * velocity * density / 2
+                    result = "{:.3f}".format(round(result, 3))
+                    sputnik.itemAtPosition(row, 10).widget().setText(result)
                 else:
-                    sputnik_table.item(row, 7).setText('')
-
-            rows_main = main_table.rowCount()
-            for row in range(rows_main):
-                temperature = self.temperature_widget.text()
-                velocity = main_table.item(row, 12).text()
-                diameter = main_table.item(row, 13).text()
-                dynamic = main_table.item(row, 17).text()
-                if all([temperature, diameter, velocity, surface, dynamic]):
-                    temperature = float(temperature)
-                    velocity = float(velocity)
-                    diameter = float(diameter)
-                    surface = float(surface)
-                    dynamic = float(dynamic)
-                    mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
-                    density = 353 / (273.15 + temperature)
-                    v = mu / density
-                    re = velocity * diameter / v
-                    lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
-                    resistivity = (lam / diameter) * dynamic
-                    resistivity = "{:.4f}".format(round(resistivity, 4))
-                    main_table.item(row, 14).setText(resistivity)
-                    main_table.item(row, 14).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    main_table.item(row, 14).setText('')
+                    sputnik.itemAtPosition(row, 10).widget().setText('')
+        else:
+            temperature = self.temperature_widget.text()
+            velocity = sputnik.itemAtPosition(row, 5).widget().text()
+            if all([temperature, velocity]):
+                temperature = float(temperature)
+                velocity = float(velocity)
+                density = 353 / (273.15 + temperature)
+                result = velocity * velocity * density / 2
+                result = "{:.3f}".format(round(result, 3))
+                sputnik.itemAtPosition(row, 10).widget().setText(result)
+            else:
+                sputnik.itemAtPosition(row, 10).widget().setText('')
 
 
-    def fill_air_flow_column_in_main_table(self, flow) -> None:
-        if flow:
-            table = self.main_table
-            num_rows = table.rowCount()
-            max_value = num_rows - 1
-            progress = QProgressDialog("Вычисляем расход...", None, 0, max_value, self)
-            progress.setWindowTitle("Подождите...жуём")
-            progress.setWindowModality(Qt.WindowModality.WindowModal)
-            progress.setMinimumDuration(0)
-            progress.setValue(0)
-            progress.setMaximum(max_value)
-            progress.show()
-            for row in range(1, num_rows):
-                if row == num_rows-1:
-                    table.setItem(row, 3, QTableWidgetItem(str(flow)))
-                else:
-                    value = int(flow) + int(table.item(row-1, 3).text())
-                    table.setItem(row, 3, QTableWidgetItem(str(value)))
-                table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                progress.setValue(row - 1)
-                if row % 100 == 0:
-                    QApplication.processEvents()
-            progress.close()
-
-
-    def update_air_flow_column_in_main_table_after_delete_row(self) -> None:
-        init_flow = self.main_table.item(0, 3)
-        if all([init_flow, init_flow.text() != '']):
-            init_flow = int(init_flow.text())
-            num_rows = self.main_table.rowCount()
-            for row in range(1, num_rows):
-                value = int(init_flow) + int(self.main_table.item(row-1, 3).text())
-                value = str(value)
-                self.main_table.item(row, 3).setText(value)
-                self.main_table.item(row, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-
-    def update_air_flow_column_in_main_table_after_add_row(self) -> None:
-        table = self.main_table
-        init_flow = table.item(0, 3)
-        if all([init_flow, init_flow.text() != '']):
-            num_rows = table.rowCount()
-            init_flow = int(init_flow.text())
-            last_flow = int(table.item(num_rows-3, 3).text())
-            new_value = init_flow + last_flow
-
-            table.setItem(num_rows-1, 3, QTableWidgetItem(str(init_flow)))
-            table.item(num_rows-1, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-            table.setItem(num_rows-2, 3, QTableWidgetItem(str(new_value)))
-            table.item(num_rows-2, 3).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-
-    def clean_air_flow_column_in_main_table(self) -> None:
-        table = self.main_table
-        num_rows = table.rowCount()
-        max_value = num_rows - 1
-        progress = QProgressDialog("Удаляем расход...", None, 0, max_value, self)
-        progress.setWindowTitle("Подождите...жуём")
-        progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.setValue(0)
-        progress.setMaximum(max_value)
-        progress.show()
-        for row in range(1, num_rows):
-            table.item(row, 3).setText('')
-            progress.setValue(row - 1)
-        progress.close()
-
-
-    def calculate_m(self, row, column) -> None:
-        main_table = self.main_table
-        sputnik_table = self.sputnik_table
-        table = self.sender().objectName()
+    def calculate_sputnik_m(self, value) -> None:
+        sputnik = self.sputnik
+        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
         axis_x = CONSTANTS.REFERENCE_DATA.M.X
         axis_y = CONSTANTS.REFERENCE_DATA.M.Y
         z = array(CONSTANTS.REFERENCE_DATA.M.TABLE)
         interpolator = RegularGridInterpolator((axis_y, axis_x), z)
-        match table:
-            case CONSTANTS.SPUTNIK_TABLE.NAME:
-                if column in (3, 4):
-                    a = sputnik_table.item(row, 3).text()
-                    b = sputnik_table.item(row, 4).text()
-                    if all([a, b]) and all([100 <= int(a) <= 1_500, 100 <= int(b) <= 1_500]):
-                        a, b = int(a), int(b)
-                        m = interpolator((b, a))
-                        m = "{:.3f}".format(around(m, 3))
-                        sputnik_table.item(row, 8).setText(m)
-                    elif a and 100 <= int(a) <= 1_500:
-                        a = int(a)
-                        m = interpolator((a, a))
-                        m = "{:.3f}".format(around(m, 3))
-                        sputnik_table.item(row, 8).setText(m)
-                    else:
-                        sputnik_table.item(row, 8).setText('')
-            case CONSTANTS.MAIN_TABLE.NAME:
-                if column in (10, 11):
-                    a = main_table.item(row, 10)
-                    b = main_table.item(row, 11)
-                    if all([a, b]) and all([a.text() != '', b.text() != '']) and all([100 <= int(a.text()) <= 1_500, 100 <= int(b.text()) <= 1_500]):
-                        a, b = int(a.text()), int(b.text())
-                        m = interpolator((b, a))
-                        m = "{:.3f}".format(around(m, 3))
-                        main_table.setItem(row, 15, QTableWidgetItem())
-                        main_table.item(row, 15).setText(m)
-                        main_table.item(row, 15).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    elif a and a.text() != '' and 100 <= int(a.text()) <= 1_500:
-                        a = int(a.text())
-                        m = interpolator((a, a))
-                        m = "{:.3f}".format(around(m, 3))
-                        main_table.setItem(row, 15, QTableWidgetItem())
-                        main_table.item(row, 15).setText(m)
-                        main_table.item(row, 15).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    else:
-                        main_table.setItem(row, 15, QTableWidgetItem())
-                        main_table.item(row, 15).setText('')
+
+        a = sputnik.itemAtPosition(row, 3).widget().text()
+        b = sputnik.itemAtPosition(row, 4).widget().text()
+        if all([a, b]) and all([100 <= int(a) <= 1_500, 100 <= int(b) <= 1_500]):
+            a, b = int(a), int(b)
+            m = interpolator((b, a))
+            m = "{:.3f}".format(around(m, 3))
+            sputnik.itemAtPosition(row, 8).widget().setText(m)
+        elif a and 100 <= int(a) <= 1_500:
+            a = int(a)
+            m = interpolator((a, a))
+            m = "{:.3f}".format(around(m, 3))
+            sputnik.itemAtPosition(row, 8).widget().setText(m)
+        else:
+            sputnik.itemAtPosition(row, 8).widget().setText('')
 
 
-    def calculate_linear_pressure_loss(self, row, column) -> None:
-        main_table = self.main_table
-        sputnik_table = self.sputnik_table
-        table = self.sender().objectName()
-        match table:
-            case CONSTANTS.SPUTNIK_TABLE.NAME:
-                if column in (2, 7, 8):
-                    l = sputnik_table.item(row, 2).text()
-                    r = sputnik_table.item(row, 7).text()
-                    m = sputnik_table.item(row, 8).text()
-                    if all([l, r, m]):
-                        l = float(l)
-                        r = float(r)
-                        m = float(m)
-                        result = "{:.4f}".format(round(l * r * m, 4))
-                        sputnik_table.item(row, 9).setText(result)
-                    else:
-                        sputnik_table.item(row, 9).setText('')
-            case CONSTANTS.MAIN_TABLE.NAME:
-                if column in (1, 14, 15):
-                    l = main_table.item(row, 1)
-                    r = main_table.item(row, 14)
-                    m = main_table.item(row, 15)
-                    if all([l, r, m]) and all([l.text() != '', r.text() != '', m.text() != '']):
-                        l = float(l.text())
-                        r = float(r.text())
-                        m = float(m.text())
-                        result = "{:.4f}".format(round(l * r * m, 4))
-                        main_table.setItem(row, 16, QTableWidgetItem())
-                        main_table.item(row, 16).setText(result)
-                        main_table.item(row, 16).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    else:
-                        main_table.setItem(row, 16, QTableWidgetItem())
-                        main_table.item(row, 16).setText('')
+    def calculate_sputnik_linear_pressure_loss(self, value) -> None:
+        sputnik = self.sputnik
+        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
+
+        l = sputnik.itemAtPosition(row, 2).widget().text()
+        r = sputnik.itemAtPosition(row, 7).widget().text()
+        m = sputnik.itemAtPosition(row, 8).widget().text()
+        if all([l, r, m]):
+            l = float(l)
+            r = float(r)
+            m = float(m)
+            result = "{:.4f}".format(round(l * r * m, 4))
+            sputnik.itemAtPosition(row, 9).widget().setText(result)
+        else:
+            sputnik.itemAtPosition(row, 9).widget().setText('')
 
 
-    def calculate_local_pressure_loss(self, row, column) -> None:
-        if column in (10, 11):
-            dynamic = self.sputnik_table.item(row, 10).text()
-            kms = self.sputnik_table.item(row, 11).text()
+    def calculate_sputnik_local_pressure_loss(self, value) -> None:
+        sputnik = self.sputnik
+        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
+
+        for row in (2, 4):
+            dynamic = sputnik.itemAtPosition(row, 10).widget().text()
+            kms = sputnik.itemAtPosition(row, 11).widget().text()
             if all([dynamic, kms]):
                 dynamic = float(dynamic)
                 kms = float(kms)
-                result = "{:.2f}".format(round(dynamic * kms, 2))
-                self.sputnik_table.item(row, 12).setText(result)
+                result = "{:.3f}".format(round(dynamic * kms, 3))
+                sputnik.itemAtPosition(row, 12).widget().setText(result)
             else:
-                self.sputnik_table.item(row, 12).setText('')
+                sputnik.itemAtPosition(row, 12).widget().setText('')
 
 
-    def calculate_sputnik_full_pressure_loss(self, row, column) -> None:
-        if column in (9, 12):
-            linear_pressure_loss = self.sputnik_table.item(row, 9).text()
-            local_pressure_loss = self.sputnik_table.item(row, 12).text()
+    def calculate_sputnik_full_pressure_loss(self, value) -> None:
+        sputnik = self.sputnik
+        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
+
+        for row in (2, 4):
+            linear_pressure_loss = sputnik.itemAtPosition(row, 9).widget().text()
+            local_pressure_loss = sputnik.itemAtPosition(row, 12).widget().text()
             if all([linear_pressure_loss, local_pressure_loss]):
                 linear_pressure_loss = float(linear_pressure_loss)
                 local_pressure_loss = float(local_pressure_loss)
-                result = "{:.2f}".format(round(linear_pressure_loss + local_pressure_loss, 2))
-                self.sputnik_table.item(row, 13).setText(result)
+                result = "{:.3f}".format(round(linear_pressure_loss + local_pressure_loss, 3))
+                sputnik.itemAtPosition(row, 13).widget().setText(result)
             else:
-                self.sputnik_table.item(row, 13).setText('')
+                sputnik.itemAtPosition(row, 13).widget().setText('')
 
 
-    def calculate_kms_by_radiobutton_1(self, checked) -> None:
-        if checked:
-            one_side_flow = self.sputnik_table.item(1, 1).text()
-            sputnik_a = self.sputnik_table.item(1, 3).text()
-            sputnik_b = self.sputnik_table.item(1, 4).text()
-            if sputnik_b == '':
-                sputnik_b = sputnik_a
-            self._calculate_kms_by_radiobutton(one_side_flow, sputnik_a, sputnik_b)
+    def calculate_sputnik_result_pressure(self, value) -> None:
+        klapan_pressure = self.sputnik.itemAtPosition(1, 13).widget().text()
+        one_side_pressure = self.sputnik.itemAtPosition(2, 13).widget().text()
+        two_side_pressure = self.sputnik.itemAtPosition(4, 13).widget().text()
 
-
-    def calculate_kms_by_radiobutton_2(self, checked) -> None:
-        if checked:
-            one_side_flow = self.sputnik_table.item(3, 1).text()
-            sputnik_a = self.sputnik_table.item(3, 3).text()
-            sputnik_b = self.sputnik_table.item(3, 4).text()
-            if sputnik_b == '':
-                sputnik_b = sputnik_a
-            self._calculate_kms_by_radiobutton(one_side_flow, sputnik_a, sputnik_b)
-
-
-    def calculate_kms(self, row, column) -> None:
-        table = self.sender().objectName()
-        if (table == CONSTANTS.SPUTNIK_TABLE.NAME and column in (1, 3, 4)) or (table == CONSTANTS.MAIN_TABLE.NAME and column in (3, 10, 11)):
-            one_side_flow = self.sputnik_table.item(1, 1).text()
-            two_side_flow = self.sputnik_table.item(3, 1).text()
-
-            if all([self.radio_button1.isChecked(), one_side_flow]):
-                sputnik_flow = one_side_flow
-                sputnik_a = self.sputnik_table.item(1, 3).text()
-                sputnik_b = self.sputnik_table.item(1, 4).text()
-                if sputnik_b == '':
-                    sputnik_b = sputnik_a
-                self._calculate_kms_by_radiobutton(sputnik_flow, sputnik_a, sputnik_b)
-            elif all([self.radio_button2.isChecked(), two_side_flow]):
-                sputnik_flow = two_side_flow
-                sputnik_a = self.sputnik_table.item(3, 3).text()
-                sputnik_b = self.sputnik_table.item(3, 4).text()
-                if sputnik_b == '':
-                    sputnik_b = sputnik_a
-                self._calculate_kms_by_radiobutton(sputnik_flow, sputnik_a, sputnik_b)
-
-
-    def _calculate_kms_by_radiobutton(self, flow, a, b, num_rows=False) -> None:
-        main_table = self.main_table
-        sputnik_a, sputnik_b = a, b
-        if all([flow, sputnik_a, sputnik_b]):
-            sputnik_flow = float(flow)
-            sputnik_a, sputnik_b = int(sputnik_a), int(sputnik_b)
-            num_rows = main_table.rowCount()
-            for row in range(num_rows-1):
-                floor_flow = main_table.item(row+1, 3)
-                main_a = main_table.item(row, 10)
-                main_b = main_table.item(row, 11)
-                if not main_b or main_b.text() == '':
-                    main_b = main_a
-
-                if all([floor_flow, main_a, main_b]) and all([floor_flow.text() != '', main_a.text() != '', main_b.text() != '']):
-                    if row == num_rows-2:
-                        floor_flow = int(floor_flow.text()) + int(main_table.item(row, 3).text())
-                    else:
-                        floor_flow = float(floor_flow.text())
-
-                    main_a, main_b = int(main_a.text()), int(main_b.text())
-
-                    x_l = sputnik_flow / floor_flow
-                    y_f = ((sputnik_a * sputnik_b) / 1_000_000) / ((main_a * main_b) / 1_000_000)
-
-                    if x_l > 1:
-                        x_l = 1
-                    elif x_l < 0:
-                        x_l = 0
-
-                    if y_f > 1:
-                        y_f = 1
-                    elif y_f < 0.1:
-                        y_f = 0.1
-
-                    pass_kms = self._interpol_kms(x_l, y_f, type='pass_kms')
-                    main_table.setItem(row, 8, QTableWidgetItem())
-                    main_table.item(row, 8).setText(pass_kms)
-                    main_table.item(row, 8).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-                    branch_kms = self._interpol_kms(x_l, y_f, type='branch_kms')
-                    main_table.setItem(row, 9, QTableWidgetItem())
-                    main_table.item(row, 9).setText(branch_kms)
-                    main_table.item(row, 9).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    main_table.setItem(row, 8, QTableWidgetItem())
-                    main_table.setItem(row, 9, QTableWidgetItem())
-                    main_table.item(row, 8).setText('')
-                    main_table.item(row, 9).setText('')
+        if all([klapan_pressure, one_side_pressure]):
+            klapan_pressure = float(klapan_pressure)
+            one_side_pressure = float(one_side_pressure)
+            first_result = "{:.3f}".format(round((klapan_pressure + one_side_pressure), 3))
+            self.sputnik.itemAtPosition(3, 13).widget().setText(first_result)
         else:
-            num_rows = main_table.rowCount()
-            for row in range(num_rows-1):
-                main_table.setItem(row, 8, QTableWidgetItem())
-                main_table.setItem(row, 9, QTableWidgetItem())
-                main_table.item(row, 8).setText('')
-                main_table.item(row, 9).setText('')
+            self.sputnik.itemAtPosition(3, 13).widget().setText('')
 
-
-    def _interpol_kms(self, x_l, y_f, type) -> str:
-        match type:
-            case 'pass_kms':
-                pass_axis_x = CONSTANTS.REFERENCE_DATA.KMS_PASS.X_L
-                pass_axis_y = CONSTANTS.REFERENCE_DATA.KMS_PASS.Y_F
-                pass_z = array(CONSTANTS.REFERENCE_DATA.KMS_PASS.TABLE)
-                pass_interpolator = RegularGridInterpolator((pass_axis_y, pass_axis_x), pass_z)
-                pass_kms = pass_interpolator((y_f, x_l))
-                pass_kms = "{:.2f}".format(around(pass_kms, 2))
-                return pass_kms
-            case 'branch_kms':
-                branch_axis_x = CONSTANTS.REFERENCE_DATA.KMS_BRANCH.X_L
-                branch_axis_y = CONSTANTS.REFERENCE_DATA.KMS_BRANCH.Y_F
-                branch_z = array(CONSTANTS.REFERENCE_DATA.KMS_BRANCH.TABLE)
-                branch_interpolator = RegularGridInterpolator((branch_axis_y, branch_axis_x), branch_z)
-                branch_kms = branch_interpolator((y_f, x_l))
-                branch_kms = "{:.2f}".format(around(branch_kms, 2))
-                return branch_kms
-
-
-    def calculate_pass_pressure(self, row, column) -> None:
-        if column in (8, 17):
-            kms = self.main_table.item(row, 8)
-            dynamic = self.main_table.item(row, 17)
-            if all([kms, dynamic]) and all([kms.text() != '', dynamic.text() != '']):
-                kms = float(kms.text())
-                dynamic = float(dynamic.text())
-                result = kms * dynamic
-                result = "{:.2f}".format(round(result, 2))
-                self.main_table.setItem(row, 18, QTableWidgetItem())
-                self.main_table.item(row, 18).setText(result)
-                self.main_table.item(row, 18).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            else:
-                self.main_table.setItem(row, 18, QTableWidgetItem())
-                self.main_table.item(row, 18).setText('')
-
-
-    def calculate_branch_pressure_by_radiobutton_1(self, checked) -> None:
-        if checked:
-            dynamic = self.sputnik_table.item(1, 10).text()
-            self._calculate_branch_pressure(dynamic)
-
-
-    def calculate_branch_pressure_by_radiobutton_2(self, checked) -> None:
-        if checked:
-            dynamic = self.sputnik_table.item(3, 10).text()
-            self._calculate_branch_pressure(dynamic)
-
-
-    def calculate_branch_pressure(self, row, column) -> None:
-        table = self.sender().objectName()
-        if all([table == CONSTANTS.SPUTNIK_TABLE.NAME and column == 10]) or all([table == CONSTANTS.MAIN_TABLE.NAME and column == 9]):
-            dynamic_one = self.sputnik_table.item(1, 10).text()
-            dynamic_two = self.sputnik_table.item(3, 10).text()
-            if all([self.radio_button1.isChecked(), dynamic_one]):
-                self._calculate_branch_pressure(dynamic_one)
-            elif all([self.radio_button1.isChecked(), dynamic_two]):
-                self._calculate_branch_pressure(dynamic_two)
-
-
-    def _calculate_branch_pressure(self, dynamic) -> None:
-        num_rows = self.main_table.rowCount()
-        if dynamic:
-            dynamic = float(dynamic)
-            for row in range(num_rows):
-                kms = self.main_table.item(row, 9)
-                if kms and kms.text() != '':
-                    kms = float(kms.text())
-                    result = kms * dynamic
-                    result = "{:.2f}".format(round(result, 2))
-                    self.main_table.setItem(row, 19, QTableWidgetItem())
-                    self.main_table.item(row, 19).setText(result)
-                    self.main_table.item(row, 19).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    self.main_table.setItem(row, 19, QTableWidgetItem())
-                    self.main_table.item(row, 19).setText('')
+        if all([klapan_pressure, two_side_pressure]):
+            klapan_pressure = float(klapan_pressure)
+            two_side_pressure = float(two_side_pressure)
+            second_result = "{:.3f}".format(round((klapan_pressure + two_side_pressure), 3))
+            self.sputnik.itemAtPosition(5, 13).widget().setText(second_result)
         else:
-            for row in range(num_rows):
-                self.main_table.setItem(row, 19, QTableWidgetItem())
-                self.main_table.item(row, 19).setText('')
+            self.sputnik.itemAtPosition(5, 13).widget().setText('')
 
 
-    def calculate_result_sputnik_pressure(self, row, column) -> None:
-        pressure_cells = ((0, 13), (1, 13), (3, 13))
-        if (row, column) in pressure_cells:
-            klapan_pressure = self.sputnik_table.item(0, 13).text()
-            one_side_pressure = self.sputnik_table.item(1, 13).text()
-            two_side_pressure = self.sputnik_table.item(3, 13).text()
-
-            if all([klapan_pressure, one_side_pressure]):
-                klapan_pressure = float(klapan_pressure)
-                one_side_pressure = float(one_side_pressure)
-                first_result = "{:.2f}".format(round((klapan_pressure + one_side_pressure), 2))
-                self.sputnik_table.item(2, 13).setText(first_result)
-                self.sputnik_table.item(2, 13).setBackground(QColor(153, 255, 255))
+    def set_base_floor_height_in_table(self) -> None:
+        base_floor_height = self.floor_height_widget.text()
+        rows = self.get_all_rows()
+        for row in rows:
+            if base_floor_height:
+                row.itemAtPosition(0, 1).widget().setText(base_floor_height)
             else:
-                self.sputnik_table.item(2, 13).setText('')
-                self.sputnik_table.item(2, 13).setBackground(QColor(255, 255, 255))
-
-            if all([klapan_pressure, two_side_pressure]):
-                klapan_pressure = float(klapan_pressure)
-                two_side_pressure = float(two_side_pressure)
-                second_result = "{:.2f}".format(round((klapan_pressure + two_side_pressure), 2))
-                self.sputnik_table.item(4, 13).setText(second_result)
-                self.sputnik_table.item(4, 13).setBackground(QColor(153, 255, 255))
-            else:
-                self.sputnik_table.item(4, 13).setText('')
-                self.sputnik_table.item(4, 13).setBackground(QColor(255, 255, 255))
+                row.itemAtPosition(0, 1).widget().setText('')
 
 
-    def calculate_height(self, row=False, column=False):
-        sender = self.sender().objectName()
-        match sender:
-            case 'main':
-                if column == 1:
-                    channel_height = self.channel_height_widget.text()
-                    base_floor_height = self.floor_height_widget.text()
-                    if channel_height and base_floor_height:
-                        self.main_table.item(0, 4).setText("{:.2f}".format(float(channel_height)))
-                        self.main_table.item(0, 4).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                        floor_height = self.main_table.item(row, 1)
-                        previous_height = self.main_table.item(row-1, 4)
-                        if all([floor_height, previous_height]) and all([floor_height.text() != '', previous_height.text() != '']):
-                            height = float(previous_height.text()) - float(floor_height.text())
-                            if (height > 0 and previous_height.text() != '') or (height == 0 and previous_height.text() != ''):
-                                height = "{:.2f}".format(round(height, 2))
-                                self.main_table.item(row, 4).setText(height)
-                                self.main_table.item(row, 4).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                            else:
-                                self.main_table.item(row, 4).setText('')
-                                self._clean_height_column_in_main_table(row)
-                    else:
-                        self._clean_height_column_in_main_table(0)
-            case 'channel_height':
-                channel_height = row
-                if channel_height:
-                    self.main_table.item(0, 4).setText("{:.2f}".format(float(channel_height)))
-                    self.main_table.item(0, 4).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    num_rows = self.main_table.rowCount()
-                    self._fill_height_column_in_main_table(num_rows)
-                else:
-                    self._clean_height_column_in_main_table(0)
+    def update_floor_number(self) -> None:
+        rows = self.get_all_rows()
+        for i in range(len(rows)):
+            rows[i].itemAtPosition(0, 0).widget().setText(str(len(rows) - i))
 
 
-    def _clean_height_column_in_main_table(self, row) -> None:
-        """Clean height column in main table from `row`."""
-        num_rows = self.main_table.rowCount()
-        for row in range(row, num_rows):
-            if self.main_table.item(row, 4):
-                self.main_table.item(row, 4).setText('')
-
-
-    def _fill_height_column_in_main_table(self, num_rows, row=False) -> None:
-        start = row if row else 1
-        for line in range(start, num_rows):
-            floor_height = self.main_table.item(line, 1)
-            previous_height = self.main_table.item(line-1, 4)
-            if all([floor_height, previous_height]) and all([floor_height.text() != '', previous_height.text() != '']):
-                height = float(previous_height.text()) - float(floor_height.text())
-                if (height > 0 and previous_height.text() != '') or (height == 0 and previous_height.text() != ''):
-                    height = "{:.2f}".format(round(height, 2))
-                    self.main_table.setItem(line, 4, QTableWidgetItem(height))
-                    self.main_table.item(line, 4).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                else:
-                    self.main_table.setItem(line, 4, QTableWidgetItem(''))
-                    self._clean_height_column_in_main_table(line)
-            else:
-                self._clean_height_column_in_main_table(line)
-
-
-    def calculate_full_pressure(self, row=False, column=False) -> None:
-        sender = self.sender()
-        table = sender.objectName()
-        if (table == CONSTANTS.SPUTNIK_TABLE.NAME and column == 13) or (table == CONSTANTS.MAIN_TABLE.NAME and column in (16, 18, 19)) or isinstance(sender, QComboBox):
-            klapan_full_pressure_one = self.sputnik_table.item(2, 13).text()
-            klapan_full_pressure_two = self.sputnik_table.item(4, 13).text()
-            
-            if all([self.radio_button1.isChecked(), klapan_full_pressure_one]):
-                klapan_full_pressure = klapan_full_pressure_one
-                self._calculate_full_pressure_by_radiobutton(klapan_full_pressure)
-            elif all([self.radio_button2.isChecked(), klapan_full_pressure_two]):
-                klapan_full_pressure = klapan_full_pressure_two
-                self._calculate_full_pressure_by_radiobutton(klapan_full_pressure)
-            else:
-                table = self.main_table
-                num_rows = table.rowCount()
-                for row in range(num_rows):
-                    table.setItem(row, 20, QTableWidgetItem())
-                    table.item(row, 20).setText('')
-
-
-    def calculate_full_pressure_by_radiobutton_1(self, checked) -> None:
+    def set_sputnik_airflow_in_table_by_radiobutton_1(self, checked) -> None:
         if checked:
-            klapan_full_pressure = self.sputnik_table.item(2, 13).text()
-            self._calculate_full_pressure_by_radiobutton(klapan_full_pressure)
+            one_side_flow = self.sputnik.itemAtPosition(2, 1).widget().text()
+            if one_side_flow:
+                self._fill_air_flow_column_in_main_table(one_side_flow)
+            else:
+                self._clean_air_flow_column_in_table()
 
 
-    def calculate_full_pressure_by_radiobutton_2(self, checked) -> None:
+    def set_sputnik_airflow_in_table_by_radiobutton_2(self, checked) -> None:
         if checked:
-            klapan_full_pressure_1 = self.sputnik_table.item(2, 13).text()
-            klapan_full_pressure_2 = self.sputnik_table.item(4, 13).text()
-            if all([klapan_full_pressure_1, klapan_full_pressure_2]):
-                klapan_full_pressure = str(max(float(klapan_full_pressure_1), float(klapan_full_pressure_2)))
-                self._calculate_full_pressure_by_radiobutton(klapan_full_pressure)
-
-
-    def _calculate_full_pressure_by_radiobutton(self, klapan_full_pressure) -> None:
-        table = self.main_table
-        num_rows = table.rowCount()
-        for row in range(num_rows):
-            branch_pressure = table.item(row, 19)
-
-            if klapan_full_pressure and branch_pressure and branch_pressure.text() != '':
-                branch_pressure = float(branch_pressure.text())
-                klapan_full_pressure = float(klapan_full_pressure)
-
-                all_pass_pressure = []
-                for line in range(row, num_rows):
-                    pass_pressure = table.item(line, 16)
-                    if pass_pressure and pass_pressure.text() != '':
-                        all_pass_pressure.append(pass_pressure.text())
-                sum_pass_pressure = sum(map(float, all_pass_pressure))
-
-                all_linear_pressure = []
-                for line in range(row, num_rows):
-                    linear_pressure = table.item(line, 18)
-                    if linear_pressure and linear_pressure.text() != '':
-                        all_linear_pressure.append(linear_pressure.text())
-                sum_linear_pressure = sum(map(float, all_linear_pressure))
-
-                result = klapan_full_pressure + branch_pressure + sum_pass_pressure + sum_linear_pressure
-                result = "{:.2f}".format(round(result, 2))
-                table.setItem(row, 20, QTableWidgetItem())
-                table.item(row, 20).setText(result)
-                table.item(row, 20).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            one_side_flow = self.sputnik.itemAtPosition(2, 1).widget().text()
+            two_side_flow = self.sputnik.itemAtPosition(4, 1).widget().text()
+            if all([one_side_flow, two_side_flow]):
+                flow = int(one_side_flow) + int(two_side_flow)
+                self._fill_air_flow_column_in_main_table(str(flow))
             else:
-                table.setItem(row, 20, QTableWidgetItem())
-                table.item(row, 20).setText('')
+                self._clean_air_flow_column_in_table()
 
 
-    def update_last_row_after_delete_row(self) -> None:
-        num_rows = self.main_table.rowCount()
-        kms_cols = (8, 9)
-        clean_cols = (18, 19, 20, 21)
-        kms_pass = self.main_table.item(num_rows, 8)
-        kms_branch = self.main_table.item(num_rows, 9)
+    def set_sputnik_airflow_in_table(self, value) -> None:
+        one_side_flow = self.sputnik.itemAtPosition(2, 1).widget().text()
+        two_side_flow = self.sputnik.itemAtPosition(4, 1).widget().text()
 
-        for col in kms_cols:
-            if self.main_table.item(num_rows, col) and self.sputnik_table.item(num_rows, col).text != '':
-                self.main_table.item(num_rows, col).setText('')
-                self.main_table.item(num_rows, col).setBackground(QColor(229, 255, 204))
-        
-        if all([kms_pass, kms_branch]) or all([kms_pass.text() != '', kms_branch.text() != '']):
-            for col in kms_cols:
-                self.main_table.item(num_rows, col).setText('')
-                self.main_table.item(num_rows, col).setBackground(QColor(229, 255, 204))
-            for col in clean_cols:
-                self.main_table.item(num_rows, col).setText('')
-                if col == 21:
-                    self.main_table.item(num_rows, col).setBackground(QColor(255, 255, 255))
+        if all([self.radio_button1.isChecked(), one_side_flow]):
+            self._fill_air_flow_column_in_main_table(one_side_flow)
 
-
-    def _join_deflector_column_cells_in_main_table(self) -> None:
-        num_rows = self.main_table.rowCount()
-        self.main_table.setSpan(0, 6, num_rows, 1)
-        self.main_table.item(0, 6).setBackground(QColor(204, 204, 255))
-
-
-    def activate_deflector_checkbox(self, value) -> None:
-        deflector_pressure = value
-        if deflector_pressure:
-            self.activate_deflector.setDisabled(False)
-
-
-    def show_deflector_column_in_main_table(self, state) -> None:
-        if state == 2:
-            self.main_table.setColumnHidden(6, False)
-            self._join_deflector_column_cells_in_main_table()
+        elif all([self.radio_button2.isChecked(), one_side_flow, two_side_flow]):
+            flow = int(one_side_flow) + int(two_side_flow)
+            self._fill_air_flow_column_in_main_table(str(flow))
         else:
-            self.main_table.setColumnHidden(6, True)
+            self._clean_air_flow_column_in_table()
 
 
-    def set_deflector_pressure_in_main_table(self, row=False, column=False) -> None:
-        sender = self.sender()
-        deflector_pressure = self.deflector.itemAtPosition(8, 1).widget().text()
-        main_table = self.main_table
-
-        if isinstance(sender, QCheckBox):
-            if deflector_pressure:
-                main_table.item(0, 6).setText(deflector_pressure)
-            else:
-                main_table.item(0, 6).setText('')
-        elif isinstance(sender, QTableWidget) and (sender.objectName() == 'sputnik' and column == 1):
-            if deflector_pressure:
-                main_table.item(0, 6).setText(deflector_pressure)
+    def _fill_air_flow_column_in_main_table(self, flow) -> None:
+        if flow:
+            self.last_row.itemAtPosition(0, 3).widget().setText(flow)
+            rows = self.get_main_rows()
+            rows[-1].itemAtPosition(0, 3).widget().setText(flow)
+            for i in range(len(rows)):
+                result = int(flow) * int(rows[i].itemAtPosition(0, 0).widget().text())
+                rows[i].itemAtPosition(0, 3).widget().setText(str(result))
 
 
-    def update_deflector_pressure_in_main_table(self, value) -> None:
-        if self.activate_deflector.isChecked() and value:
-            self.main_table.item(0, 6).setText(value)
-        else:
-            self.main_table.item(0, 6).setText('')
+    def _clean_air_flow_column_in_table(self) -> None:
+        rows = self.get_all_rows()
+        for row in rows:
+            row.itemAtPosition(0, 3).widget().setText('')
 
 
-    def calculate_available_pressure(self, row=False, column=False) -> None:
-        sender = self.sender()
-        name = sender.objectName()
+    def calculate_height(self) -> None:
+        channel_height = self.channel_height_widget.text()
+        base_floor_height = self.floor_height_widget.text()
+        if all([channel_height, base_floor_height]):
+            rows = self.get_all_rows()
+            result = "{:.2f}".format(round(float(channel_height), 2))
+            rows[-1].itemAtPosition(0, 4).widget().setText(result)
 
-        if isinstance(sender, QTableWidget):
-            match name:
-                case 'deflector':
-                    deflector_is_checked = self.activate_deflector.isChecked()
-                    if deflector_is_checked:
-                        num_rows = self.main_table.rowCount()
-                        for row in range(num_rows):
-                            deflector_pressure = self.main_table.item(0, 6).text()
-                            gravi_pressure = self.main_table.item(row, 5)
-                            if all([deflector_pressure, gravi_pressure]) and gravi_pressure.text() != '':
-                                deflector_pressure = float(deflector_pressure)
-                                gravi_pressure = float(gravi_pressure.text())
-                                result = gravi_pressure + deflector_pressure
-                                result = "{:.2f}".format(round(result, 2))
-                                self.main_table.setItem(row, 7, QTableWidgetItem())
-                                self.main_table.item(row, 7).setText(result)
-                                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                            else:
-                                self.main_table.setItem(row, 7, QTableWidgetItem())
-                                self.main_table.item(row, 7).setText('')
-                    else:
-                        num_rows = self.main_table.rowCount()
-                        for row in range(num_rows):
-                            gravi_pressure = self.main_table.item(row, 5)
-                            if gravi_pressure and gravi_pressure.text() != '':
-                                result = gravi_pressure.text()
-                                self.main_table.setItem(row, 7, QTableWidgetItem())
-                                self.main_table.item(row, 7).setText(result)
-                                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                            else:
-                                self.main_table.setItem(row, 7, QTableWidgetItem())
-                                self.main_table.item(row, 7).setText('')
-                case 'main':
-                    if column == 5:
-                        deflector_is_checked = self.activate_deflector.isChecked()
-                        if deflector_is_checked:
-                            deflector_pressure = self.main_table.item(0, 6).text()
-                            gravi_pressure = self.main_table.item(row, 5)
-                            if all([deflector_pressure, gravi_pressure]) and gravi_pressure.text() != '':
-                                deflector_pressure = float(deflector_pressure)
-                                gravi_pressure = float(gravi_pressure.text())
-                                result = gravi_pressure + deflector_pressure
-                                result = "{:.2f}".format(round(result, 2))
-                                self.main_table.setItem(row, 7, QTableWidgetItem())
-                                self.main_table.item(row, 7).setText(result)
-                                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                            else:
-                                self.main_table.setItem(row, 7, QTableWidgetItem())
-                                self.main_table.item(row, 7).setText('')
-                        else:
-                            gravi_pressure = self.main_table.item(row, 5)
-                            if all([gravi_pressure, gravi_pressure.text() != '']):
-                                result = gravi_pressure.text()
-                                self.main_table.setItem(row, 7, QTableWidgetItem())
-                                self.main_table.item(row, 7).setText(result)
-                                self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                            else:
-                                self.main_table.setItem(row, 7, QTableWidgetItem())
-                                self.main_table.item(row, 7).setText('')
-        elif isinstance(sender, QCheckBox):
-            if row == 2:
-                num_rows = self.main_table.rowCount()
-                for row in range(num_rows):
-                    deflector_pressure = self.main_table.item(0, 6).text()
-                    gravi_pressure = self.main_table.item(row, 5)
-                    if all([deflector_pressure, gravi_pressure]) and gravi_pressure.text() != '':
-                        deflector_pressure = float(deflector_pressure)
-                        gravi_pressure = float(gravi_pressure.text())
-                        result = gravi_pressure + deflector_pressure
+            for i in range(len(rows) - 2, -1, -1):
+                floor_height = rows[i+1].itemAtPosition(0, 1).widget().text()
+                previous_height = rows[i+1].itemAtPosition(0, 4).widget().text()
+
+                if all([floor_height, previous_height]):
+                    result = float(previous_height) - float(floor_height)
+                    if (result > 0 and previous_height) or (result == 0 and previous_height):
                         result = "{:.2f}".format(round(result, 2))
-                        self.main_table.setItem(row, 7, QTableWidgetItem())
-                        self.main_table.item(row, 7).setText(result)
-                        self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                        rows[i].itemAtPosition(0, 4).widget().setText(result)
                     else:
-                        self.main_table.setItem(row, 7, QTableWidgetItem())
-                        self.main_table.item(row, 7).setText('')
+                        rows[i].itemAtPosition(0, 4).widget().setText('')
+                else:
+                    rows[i].itemAtPosition(0, 4).widget().setText('')
+        else:
+            rows = self.get_all_rows()
+            for row in rows:
+                row.itemAtPosition(0, 4).widget().setText('')
+
+
+    def calculate_gravi_pressure(self) -> None:
+        temperature = self.temperature_widget.text()
+        rows = self.get_all_rows()
+        for row in rows:
+            height = row.itemAtPosition(0, 4).widget().text()
+            if all([temperature, height]):
+                temperature = float(temperature)
+                height = float(height)
+                result = 0.9 * CONSTANTS.ACCELERATION_OF_GRAVITY * height * ((353 / (273 + 5)) - (353 / (273 + temperature)))
+                result = "{:.3f}".format(round(result, 3))
+                row.itemAtPosition(0, 5).widget().setText(result)
             else:
-                num_rows = self.main_table.rowCount()
-                for row in range(num_rows):
-                    gravi_pressure = self.main_table.item(row, 5)
-                    if gravi_pressure and gravi_pressure.text() != '':
-                        result = gravi_pressure.text()
-                        self.main_table.setItem(row, 7, QTableWidgetItem())
-                        self.main_table.item(row, 7).setText(result)
-                        self.main_table.item(row, 7).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                    else:
-                        self.main_table.setItem(row, 7, QTableWidgetItem())
-                        self.main_table.item(row, 7).setText('')
+                row.itemAtPosition(0, 5).widget().setText('')
+
+
+    def calculate_available_pressure(self) -> None:
+        deflector_is_checked = self.activate_deflector.isChecked()
+        deflector_pressure = self.last_row.itemAtPosition(0, 6).widget().text()
+        if all([deflector_is_checked, deflector_pressure]):
+            rows = self.get_all_rows()
+            for row in rows:
+                gravi_pressure = row.itemAtPosition(0, 5).widget().text()
+                if gravi_pressure:
+                    gravi_pressure = float(row.itemAtPosition(0, 5).widget().text())
+                    deflector_pressure = float(deflector_pressure)
+                    result = gravi_pressure + deflector_pressure
+                    result = "{:.3f}".format(round(result, 3))
+                    row.itemAtPosition(0, 7).widget().setText(result)
+                else:
+                    row.itemAtPosition(0, 7).widget().setText('')
+        else:
+            rows = self.get_all_rows()
+            for row in rows:
+                result = row.itemAtPosition(0, 5).widget().text()
+                row.itemAtPosition(0, 7).widget().setText(result)
+
+
+    def set_deflector_pressure_in_table(self, value) -> None:
+        if value:
+            self.last_row.itemAtPosition(0, 6).widget().setText(value)
+        else:
+            self.last_row.itemAtPosition(0, 6).widget().setText('')
+
+
+    def set_klapan_air_flow_in_label(self, value) -> None:
+        klapan_flow = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(value)
+        self.klapan_air_flow_label.setText(f'{klapan_flow} м<sup>3</sup>/ч')
+
+
+    def calculate_result(self, value) -> None:
+        row = self.sender().parent().layout()
+        available_pressure = row.itemAtPosition(0, 7).widget().text()
+        full_pressure = row.itemAtPosition(0, 20).widget().text()
+
+        if all([available_pressure, full_pressure]):
+            available_pressure = float(available_pressure)
+            full_pressure = float(full_pressure)
+            if available_pressure > full_pressure:
+                result = '✅'
+                row.itemAtPosition(0, 21).widget().setText(result)
+            else:
+                result = '❌'
+                row.itemAtPosition(0, 21).widget().setText(result)
+        else:
+            row.itemAtPosition(0, 21).widget().setText('')
 
 
     def activate_klapan_input(self, value) -> None:
@@ -1771,35 +1163,6 @@ class MainWindow(QMainWindow):
             self.klapan_input.setText('')
             self.klapan_input.setDisabled(True)
             self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
-
-
-    def _clean_for_last_floor(self) -> None:
-        table = self.main_table
-        num_rows = table.rowCount()
-
-        for col in (8, 9):
-            table.setItem(num_rows-1, col, QTableWidgetItem())
-            table.item(num_rows-1, col).setBackground(QColor(229, 255, 204))
-            table.item(num_rows-2, col).setBackground(QColor(255, 255, 255))
-        table.item(num_rows-1, 8).setText('0')
-        table.item(num_rows-1, 8).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        if all([table.item(num_rows-2, 8), table.item(num_rows-2, 8).text() == '0']):
-            table.item(num_rows-2, 8).setText('')
-
-
-    def validate_last_floor_kms(self, item) -> None:
-        last_row = self.main_table.rowCount() - 1
-        column = item.column()
-        row = item.row()
-        if column in (8, 9) and row == last_row:
-            # Allows values: 0...100 with or without one | two digit after separator
-            pattern = r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$'
-            if not re.match(pattern, item.text()):
-                item.setText('')
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            else:
-                item.setText(item.text())
 
 
     def create_deflector_calculation(self) -> object:
@@ -1824,7 +1187,7 @@ class MainWindow(QMainWindow):
                 line_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 line_label.setFixedWidth(60)
                 line_label.setFixedHeight(30)
-                line_label.setStyleSheet('QLineEdit {background-color: #EFEFEF }')
+                line_label.setStyleSheet('QLineEdit {background-color: #EFEFEF; border: 0 }')
                 line_label.setReadOnly(True)
                 _layout.addWidget(line_label, i, 1)
 
@@ -1845,52 +1208,39 @@ class MainWindow(QMainWindow):
         pressure_relation = _layout.itemAtPosition(7, 1).widget()
         deflector_pressure = _layout.itemAtPosition(8, 1).widget()
         deflector_pressure.setObjectName(CONSTANTS.DEFLECTOR.NAME)
+        deflector_pressure.setStyleSheet('QLineEdit { background-color: #CCCCFF; border: 0 }')
 
-        wind_velocity.textChanged.connect(self.calculate_recommended_deflector_velocity)
-        recommended_velocity.textChanged.connect(self.calculate_required_deflector_square)
-        air_flow.textChanged.connect(self.calculate_required_deflector_square)
+        wind_velocity.textChanged.connect(self.calculate_deflector_recommended_velocity)
+        recommended_velocity.textChanged.connect(self.calculate_deflector_required_square)
+        air_flow.textChanged.connect(self.calculate_deflector_required_square)
         required_deflector_square.textChanged.connect(self.calculate_deflector_diameter)
-        deflector_diameter.textChanged.connect(self.calculate_real_deflector_velocity)
-        air_flow.textChanged.connect(self.calculate_real_deflector_velocity)
-        real_deflector_velocity.textChanged.connect(self.calculate_velocity_relation)
-        wind_velocity.textChanged.connect(self.calculate_velocity_relation)
-        velocity_relation.textChanged.connect(self.calculate_pressure_relation)
+        deflector_diameter.textChanged.connect(self.calculate_deflector_real_velocity)
+        air_flow.textChanged.connect(self.calculate_deflector_real_velocity)
+        real_deflector_velocity.textChanged.connect(self.calculate_deflector_velocity_relation)
+        wind_velocity.textChanged.connect(self.calculate_deflector_velocity_relation)
+        velocity_relation.textChanged.connect(self.calculate_deflector_pressure_relation)
         wind_velocity.textChanged.connect(self.calculate_deflector_pressure)
         pressure_relation.textChanged.connect(self.calculate_deflector_pressure)
 
         deflector_pressure.textChanged.connect(self.activate_deflector_checkbox)
-        wind_velocity.textChanged.connect(self.calculate_available_pressure)
-
-        deflector_pressure.textChanged.connect(self.update_deflector_pressure_in_main_table)
+        deflector_pressure.textChanged.connect(self.set_deflector_pressure_in_table)
 
         _box.setLayout(_layout)
         return _box
 
 
-    def set_full_air_flow_in_deflector(self, row, column) -> None:
-        last_flow_row = self.main_table.rowCount() - 2
-        if row == last_flow_row and column == 3:
-            init_flow = self.main_table.item(0, 3)
-            last_flow = self.main_table.item(last_flow_row, 3)
+    def set_full_air_flow_in_deflector(self, value) -> None:
+        rows = self.get_all_rows()
+        value = rows[0].itemAtPosition(0, 3).widget().text()
 
-            if all([init_flow, last_flow]) and all([init_flow.text() != '', last_flow.text() != '']):
-                result = int(init_flow.text()) + int(last_flow.text())
-                self.deflector.itemAtPosition(2, 1).widget().setText(str(result))
-            else:
-                self.deflector.itemAtPosition(2, 1).widget().setText('')
-
-
-    def update_full_air_flow_in_deflector_after_delete_row(self) -> None:
-        num_rows = self.main_table.rowCount()
-        last_row_main_table = num_rows - 1
-        air_flow = self.main_table.item(last_row_main_table, 3)
-        if air_flow and air_flow.text() != '':
-            self.deflector.itemAtPosition(2, 1).widget().setText(air_flow.text())
+        if value:
+            result = int(value) * len(rows)
+            self.deflector.itemAtPosition(2, 1).widget().setText(str(result))
         else:
             self.deflector.itemAtPosition(2, 1).widget().setText('')
 
 
-    def calculate_recommended_deflector_velocity(self, value) -> None:
+    def calculate_deflector_recommended_velocity(self, value) -> None:
         if value:
             wind_velocity = float(value)
             result = "{:.2f}".format(round(wind_velocity * 0.3, 2))
@@ -1899,7 +1249,7 @@ class MainWindow(QMainWindow):
             self.deflector.itemAtPosition(1, 1).widget().setText('')
 
 
-    def calculate_required_deflector_square(self, value) -> None:
+    def calculate_deflector_required_square(self, value) -> None:
         recommended_velocity = self.deflector.itemAtPosition(1, 1).widget().text()
         air_flow = self.deflector.itemAtPosition(2, 1).widget().text()
         if all([recommended_velocity, air_flow]):
@@ -1926,7 +1276,7 @@ class MainWindow(QMainWindow):
             self.deflector.itemAtPosition(4, 1).widget().setText('')
 
 
-    def calculate_real_deflector_velocity(self, value) -> None:
+    def calculate_deflector_real_velocity(self, value) -> None:
         air_flow = self.deflector.itemAtPosition(2, 1).widget().text()
         diameter = self.deflector.itemAtPosition(4, 1).widget().text()
         if all([air_flow, diameter]) and diameter != 'Нет значения!':
@@ -1938,7 +1288,7 @@ class MainWindow(QMainWindow):
             self.deflector.itemAtPosition(5, 1).widget().setText('')
 
 
-    def calculate_velocity_relation(self, value) -> None:
+    def calculate_deflector_velocity_relation(self, value) -> None:
         wind_velocity = self.deflector.itemAtPosition(0, 1).widget().text()
         real_velocity = self.deflector.itemAtPosition(5, 1).widget().text()
         if all([wind_velocity, real_velocity]):
@@ -1950,7 +1300,7 @@ class MainWindow(QMainWindow):
             self.deflector.itemAtPosition(6, 1).widget().setText('')
 
 
-    def calculate_pressure_relation(self, value) -> None:
+    def calculate_deflector_pressure_relation(self, value) -> None:
         velocity_relation = value
         if velocity_relation:
             try:
@@ -1974,26 +1324,471 @@ class MainWindow(QMainWindow):
             wind_velocity = float(wind_velocity)
             pressure_relation = float(pressure_relation)
             result = pressure_relation * ((353 / (273.15 + 5)) * pow(wind_velocity, 2) / 2)
-            result = "{:.2f}".format(round(result, 2))
+            result = "{:.3f}".format(round(result, 3))
             self.deflector.itemAtPosition(8, 1).widget().setText(result)
         else:
             self.deflector.itemAtPosition(8, 1).widget().setText('')
 
 
+    def activate_deflector_checkbox(self, value) -> None:
+        deflector_pressure = value
+        if deflector_pressure:
+            self.activate_deflector.setDisabled(False)
 
 
+    def show_deflector_in_table(self, state) -> None:
+        rows = self.get_all_rows()
+        if state == 2:
+            self.header.itemAtPosition(0, 6).widget().setVisible(True)
+            for row in rows:
+                row.itemAtPosition(0, 6).widget().setVisible(True)
+        else:
+            self.header.itemAtPosition(0, 6).widget().hide()
+            for row in rows:
+                row.itemAtPosition(0, 6).widget().hide()
 
 
+    def calculate_air_velocity(self, value) -> None:
+        row = self.sender().parent().layout()
+        a = row.itemAtPosition(0, 10).widget().text()
+        b = row.itemAtPosition(0, 11).widget().text()
+        air_flow = row.itemAtPosition(0, 3).widget().text()
+
+        if all([air_flow, a, b]):
+            velocity = float(air_flow) / (3_600 * ((float(a) * float(b) / 1_000_000)))
+            velocity = "{:.2f}".format(round(velocity, 2))
+            row.itemAtPosition(0, 12).widget().setText(velocity)
+        elif all([air_flow, a]):
+            velocity = float(air_flow) / (3_600 * (3.1415 * (float(a) / 1_000) * (float(a) / 1_000) / 4))
+            velocity = "{:.2f}".format(round(velocity, 2))
+            row.itemAtPosition(0, 12).widget().setText(velocity)
+        else:
+            row.itemAtPosition(0, 12).widget().setText('')
 
 
+    def calculate_diameter(self, value) -> None:
+        row = self.sender().parent().layout()
+        a = row.itemAtPosition(0, 10).widget().text()
+        b = row.itemAtPosition(0, 11).widget().text()
+
+        if all([a, b]):
+            result = (2 * float(a) * float(b) / (float(a) + float(b)) / 1_000)
+            result = "{:.3f}".format(round(result, 3))
+            row.itemAtPosition(0, 13).widget().setText(result)
+        elif a:
+            result = float(a) / 1_000
+            result = "{:.3f}".format(round(result, 3))
+            row.itemAtPosition(0, 13).widget().setText(result)
+        else:
+            row.itemAtPosition(0, 13).widget().setText('')
 
 
+    def calculate_dynamic(self, value) -> None:
+        name = self.sender().objectName()
+        if name == 'temperature':
+            temperature = value
+            rows = self.get_all_rows()
+            for row in rows:
+                velocity = row.itemAtPosition(0, 12).widget().text()
+                if all([temperature, velocity]):
+                    temperature = float(temperature)
+                    velocity = float(velocity)
+                    density = 353 / (273.15 + temperature)
+                    result = velocity * velocity * density / 2
+                    result = "{:.3f}".format(round(result, 3))
+                    row.itemAtPosition(0, 17).widget().setText(result)
+                else:
+                    row.itemAtPosition(0, 17).widget().setText('')
+        else:
+            temperature = self.temperature_widget.text()
+            row = self.sender().parent().layout()
+            velocity = row.itemAtPosition(0, 12).widget().text()
+            if all([temperature, velocity]):
+                temperature = float(temperature)
+                velocity = float(velocity)
+                density = 353 / (273.15 + temperature)
+                result = velocity * velocity * density / 2
+                result = "{:.3f}".format(round(result, 3))
+                row.itemAtPosition(0, 17).widget().setText(result)
+            else:
+                row.itemAtPosition(0, 17).widget().setText('')
 
 
+    def calculate_specific_pressure_loss(self, value) -> None:
+        name = self.sender().objectName()
+        match name:
+            case 'temperature' | 'surface':
+                temperature = self.temperature_widget.text()
+                surface = self.surface_widget.text()
+                rows = self.get_all_rows()
+                for row in rows:
+                    velocity = row.itemAtPosition(0, 12).widget().text()
+                    diameter = row.itemAtPosition(0, 13).widget().text()
+                    dynamic = row.itemAtPosition(0, 17).widget().text()
+                    if all([temperature, diameter, velocity, surface, dynamic]):
+                        try:
+                            temperature = float(temperature)
+                            velocity = float(velocity)
+                            diameter = float(diameter)
+                            surface = float(surface)
+                            dynamic = float(dynamic)
+                            mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
+                            density = 353 / (273.15 + temperature)
+                            v = mu / density
+                            re = velocity * diameter / v
+                            lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
+                            result = (lam / diameter) * dynamic
+                            result = "{:.4f}".format(round(result, 4))
+                            row.itemAtPosition(0, 14).widget().setText(result)
+                        except ZeroDivisionError:
+                            row.itemAtPosition(0, 14).widget().setText('')
+                    else:
+                        row.itemAtPosition(0, 14).widget().setText('')
+            case _:
+                row = self.sender().parent().layout()
+                temperature = self.temperature_widget.text()
+                surface = self.surface_widget.text()
+                velocity = row.itemAtPosition(0, 12).widget().text()
+                diameter = row.itemAtPosition(0, 13).widget().text()
+                dynamic = row.itemAtPosition(0, 17).widget().text()
+                if all([temperature, diameter, velocity, surface, dynamic]):
+                    try:
+                        temperature = float(temperature)
+                        velocity = float(velocity)
+                        diameter = float(diameter)
+                        surface = float(surface)
+                        dynamic = float(dynamic)
+                        mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
+                        density = 353 / (273.15 + temperature)
+                        v = mu / density
+                        re = velocity * diameter / v
+                        lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
+                        result = (lam / diameter) * dynamic
+                        result = "{:.4f}".format(round(result, 4))
+                        row.itemAtPosition(0, 14).widget().setText(result)
+                    except ZeroDivisionError:
+                        row.itemAtPosition(0, 14).widget().setText('')
+                else:
+                    row.itemAtPosition(0, 14).widget().setText('')
 
 
+    def calculate_m(self, value) -> None:
+        axis_x = CONSTANTS.REFERENCE_DATA.M.X
+        axis_y = CONSTANTS.REFERENCE_DATA.M.Y
+        z = array(CONSTANTS.REFERENCE_DATA.M.TABLE)
+        interpolator = RegularGridInterpolator((axis_y, axis_x), z)
+
+        row = self.sender().parent().layout()
+        a = row.itemAtPosition(0, 10).widget().text()
+        b = row.itemAtPosition(0, 11).widget().text()
+        if all([a, b]) and all([100 <= int(a) <= 1_500, 100 <= int(b) <= 1_500]):
+            a, b = int(a), int(b)
+            m = interpolator((b, a))
+            m = "{:.3f}".format(around(m, 3))
+            row.itemAtPosition(0, 15).widget().setText(m)
+        elif a and 100 <= int(a) <= 1_500:
+            a = int(a)
+            m = interpolator((a, a))
+            m = "{:.3f}".format(around(m, 3))
+            row.itemAtPosition(0, 15).widget().setText(m)
+        else:
+            row.itemAtPosition(0, 15).widget().setText('')
 
 
+    def calculate_linear_pressure_loss(self, value) -> None:
+        row = self.sender().parent().layout()
+        l = row.itemAtPosition(0, 1).widget().text()
+        r = row.itemAtPosition(0, 14).widget().text()
+        m = row.itemAtPosition(0, 15).widget().text()
+        if all([l, r, m]):
+            l = float(l)
+            r = float(r)
+            m = float(m)
+            result = "{:.4f}".format(round(l * r * m, 4))
+            row.itemAtPosition(0, 16).widget().setText(result)
+        else:
+            row.itemAtPosition(0, 16).widget().setText('')
+
+
+    def calculate_kms_by_radiobutton_1(self, checked) -> None:
+        if checked:
+            one_side_flow = self.sputnik.itemAtPosition(2, 1).widget().text()
+            sputnik_a = self.sputnik.itemAtPosition(2, 3).widget().text()
+            sputnik_b = self.sputnik.itemAtPosition(2, 4).widget().text()
+            if sputnik_b == '':
+                sputnik_b = sputnik_a
+            if all([one_side_flow, sputnik_a, sputnik_b]):
+                self._calculate_kms_by_radiobutton(one_side_flow, sputnik_a, sputnik_b)
+
+
+    def calculate_kms_by_radiobutton_2(self, checked) -> None:
+        if checked:
+            one_side_flow = self.sputnik.itemAtPosition(2, 1).widget().text()
+            two_side_flow = self.sputnik.itemAtPosition(4, 1).widget().text()
+            if all([one_side_flow, two_side_flow]):
+                flow = str(max(float(one_side_flow),  float(two_side_flow)))
+                sputnik_a = self.sputnik.itemAtPosition(4, 3).widget().text()
+                sputnik_b = self.sputnik.itemAtPosition(4, 4).widget().text()
+                if sputnik_b == '':
+                    sputnik_b = sputnik_a
+                if all([flow, sputnik_a, sputnik_b]):
+                    self._calculate_kms_by_radiobutton(flow, sputnik_a, sputnik_b)
+
+
+    def calculate_kms(self, value) -> None:
+        one_side_flow = self.sputnik.itemAtPosition(2, 1).widget().text()
+        two_side_flow = self.sputnik.itemAtPosition(4, 1).widget().text()
+
+        if all([self.radio_button1.isChecked(), one_side_flow]):
+            sputnik_flow = one_side_flow
+            sputnik_a = self.sputnik.itemAtPosition(2, 3).widget().text()
+            sputnik_b = self.sputnik.itemAtPosition(2, 4).widget().text()
+            if sputnik_b == '':
+                sputnik_b = sputnik_a
+            if all([one_side_flow, sputnik_a, sputnik_b]):
+                self._calculate_kms_by_radiobutton(sputnik_flow, sputnik_a, sputnik_b)
+
+        elif all([self.radio_button2.isChecked(), two_side_flow]):
+            flow = str(max(float(one_side_flow),  float(two_side_flow)))
+            sputnik_a = self.sputnik.itemAtPosition(4, 3).widget().text()
+            sputnik_b = self.sputnik.itemAtPosition(4, 4).widget().text()
+            if sputnik_b == '':
+                sputnik_b = sputnik_a
+            if all([flow, sputnik_a, sputnik_b]):
+                self._calculate_kms_by_radiobutton(flow, sputnik_a, sputnik_b)
+
+
+    def _calculate_kms_by_radiobutton(self, flow, a, b) -> None:
+        sputnik_a, sputnik_b = a, b
+        if all([flow, sputnik_a, sputnik_b]):
+            sputnik_flow = float(flow)
+            sputnik_a, sputnik_b = int(sputnik_a), int(sputnik_b)
+            rows = self.get_all_rows()
+            for i in range(len(rows) - 1, 0, -1):
+                floor_flow = rows[i-1].itemAtPosition(0, 3).widget().text()
+                main_a = rows[i].itemAtPosition(0, 10).widget().text()
+                main_b = rows[i].itemAtPosition(0, 11).widget().text()
+                if not main_b or main_b == '':
+                    main_b = main_a
+
+                if all([floor_flow, main_a, main_b]):
+                    floor_flow = float(floor_flow)
+                    main_a, main_b = int(main_a), int(main_b)
+
+                    x_l = sputnik_flow / floor_flow
+                    y_f = ((sputnik_a * sputnik_b) / 1_000_000) / ((main_a * main_b) / 1_000_000)
+
+                    if x_l > 1:
+                        x_l = 1
+                    elif x_l < 0:
+                        x_l = 0
+
+                    if y_f > 1:
+                        y_f = 1
+                    elif y_f < 0.1:
+                        y_f = 0.1
+
+                    pass_kms = self._interpol_kms(x_l, y_f, type='pass_kms')
+                    rows[i].itemAtPosition(0, 8).widget().setText(pass_kms)
+
+                    if i == len(rows) - 1:
+                        rows[i].itemAtPosition(0, 9).widget().setText('3.7')
+                    else:
+                        branch_kms = self._interpol_kms(x_l, y_f, type='branch_kms')
+                        rows[i].itemAtPosition(0, 9).widget().setText(branch_kms)
+                else:
+                    rows[i].itemAtPosition(0, 8).widget().setText('')
+                    rows[i].itemAtPosition(0, 9).widget().setText('')
+        else:
+            rows = self.get_main_rows()
+            for i in range(len(rows)):
+                rows[i].itemAtPosition(0, 8).widget().setText('')
+
+
+    def _interpol_kms(self, x_l, y_f, type) -> str:
+        match type:
+            case 'pass_kms':
+                pass_axis_x = CONSTANTS.REFERENCE_DATA.KMS_PASS.X_L
+                pass_axis_y = CONSTANTS.REFERENCE_DATA.KMS_PASS.Y_F
+                pass_z = array(CONSTANTS.REFERENCE_DATA.KMS_PASS.TABLE)
+                pass_interpolator = RegularGridInterpolator((pass_axis_y, pass_axis_x), pass_z)
+                pass_kms = pass_interpolator((y_f, x_l))
+                pass_kms = "{:.2f}".format(around(pass_kms, 2))
+                return pass_kms
+            case 'branch_kms':
+                branch_axis_x = CONSTANTS.REFERENCE_DATA.KMS_BRANCH.X_L
+                branch_axis_y = CONSTANTS.REFERENCE_DATA.KMS_BRANCH.Y_F
+                branch_z = array(CONSTANTS.REFERENCE_DATA.KMS_BRANCH.TABLE)
+                branch_interpolator = RegularGridInterpolator((branch_axis_y, branch_axis_x), branch_z)
+                branch_kms = branch_interpolator((y_f, x_l))
+                branch_kms = "{:.2f}".format(around(branch_kms, 2))
+                return branch_kms
+
+
+    def calculate_pass_pressure(self, value) -> None:
+        rows = self.get_all_rows()
+        for row in rows:
+            velocity = row.itemAtPosition(0, 12).widget().text()
+            kms = row.itemAtPosition(0, 8).widget().text()
+            temperature = self.temperature_widget.text()
+            if all([kms, temperature, velocity]):
+                velocity = float(velocity)
+                kms = float(kms)
+                temperature = float(temperature)
+                result = kms * velocity * velocity * (353 / (273 + temperature)) / 2
+                result = "{:.3f}".format(round(result, 3))
+                row.itemAtPosition(0, 18).widget().setText(result)
+            else:
+                row.itemAtPosition(0, 18).widget().setText('')
+
+
+    def calculate_branch_pressure_by_radiobutton_1(self, checked) -> None:
+        if checked:
+            velocity = self.sputnik.itemAtPosition(2, 5).widget().text()
+            if velocity:
+                self._calculate_branch_pressure(velocity)
+
+
+    def calculate_branch_pressure_by_radiobutton_2(self, checked) -> None:
+        if checked:
+            velocity_one = self.sputnik.itemAtPosition(2, 5).widget().text()
+            velocity_two = self.sputnik.itemAtPosition(4, 5).widget().text()
+            if velocity_one and not velocity_two:
+                self._calculate_branch_pressure(velocity_one)
+            elif all([velocity_one, velocity_two]):
+                velocity = str(max(float(velocity_one),  float(velocity_two)))
+                self._calculate_branch_pressure(velocity)
+            else:
+                rows = self.get_all_rows()
+                for row in rows:
+                    row.itemAtPosition(0, 19).widget().setText('')
+
+
+    def calculate_branch_pressure(self, value) -> None:
+        velocity_one = self.sputnik.itemAtPosition(2, 5).widget().text()
+        velocity_two = self.sputnik.itemAtPosition(4, 5).widget().text()
+        if velocity_one and not velocity_two:
+            self._calculate_branch_pressure(velocity_one)
+        elif all([velocity_one, velocity_two]):
+            velocity = str(max(float(velocity_one),  float(velocity_two)))
+            self._calculate_branch_pressure(velocity)
+
+
+    def _calculate_branch_pressure(self, velocity) -> None:
+        velocity = float(velocity)
+        rows = self.get_all_rows()
+        for row in rows:
+            kms = row.itemAtPosition(0, 9).widget().text()
+            temperature = self.temperature_widget.text()
+            if all([kms, temperature]):
+                kms = float(kms)
+                temperature = float(temperature)
+                result = kms * velocity * velocity * (353 / (273 + temperature)) / 2
+                result = "{:.3f}".format(round(result, 3))
+                row.itemAtPosition(0, 19).widget().setText(result)
+            else:
+                row.itemAtPosition(0, 19).widget().setText('')
+
+
+    def calculate_full_pressure_by_radiobutton_1(self, checked) -> None:
+        if checked:
+            klapan_full_pressure_1 = self.cell_3_13.text()
+            if klapan_full_pressure_1:
+                self._calculate_full_pressure(klapan_full_pressure_1)
+            else:
+                rows = self.get_all_rows()
+                for row in rows:
+                    row.itemAtPosition(0, 20).widget().setText('')
+
+
+    def calculate_full_pressure_by_radiobutton_2(self, checked) -> None:
+        if checked:
+            klapan_full_pressure_1 = self.cell_3_13.text()
+            klapan_full_pressure_2 = self.cell_5_13.text()
+            if all([klapan_full_pressure_1, klapan_full_pressure_2]):
+                klapan_full_pressure = str(max(float(klapan_full_pressure_1), float(klapan_full_pressure_2)))
+                self._calculate_full_pressure(klapan_full_pressure)
+            else:
+                rows = self.get_all_rows()
+                for row in rows:
+                    row.itemAtPosition(0, 20).widget().setText('')
+
+
+    def calculate_full_pressure(self, value) -> None:
+        klapan_full_pressure_1 = self.cell_3_13.text()
+        klapan_full_pressure_2 = self.cell_5_13.text()
+
+        if all([self.radio_button1.isChecked(), klapan_full_pressure_1]):
+            klapan_full_pressure = klapan_full_pressure_1
+            self._calculate_full_pressure(klapan_full_pressure)
+        elif all([self.radio_button2.isChecked(), klapan_full_pressure_1, klapan_full_pressure_2]):
+            klapan_full_pressure = str(max(float(klapan_full_pressure_1), float(klapan_full_pressure_2)))
+            self._calculate_full_pressure(klapan_full_pressure)
+
+
+    def _calculate_full_pressure(self, klapan_full_pressure) -> None:
+        rows = self.get_all_rows()
+        for i in range(len(rows) - 1, -1, -1):
+            branch_pressure = rows[i].itemAtPosition(0, 19).widget().text()
+            if all([klapan_full_pressure, branch_pressure]):
+                branch_pressure = float(branch_pressure)
+                klapan_full_pressure = float(klapan_full_pressure)
+
+                all_pass_pressure = []
+                for line in range(i, len(rows)):
+                    pass_pressure = rows[line].itemAtPosition(0, 18).widget().text()
+                    if pass_pressure:
+                        all_pass_pressure.append(pass_pressure)
+                sum_pass_pressure = sum(map(float, all_pass_pressure))
+
+                all_linear_pressure = []
+                for line in range(i, len(rows)):
+                    linear_pressure = rows[line].itemAtPosition(0, 16).widget().text()
+                    if linear_pressure:
+                        all_linear_pressure.append(linear_pressure)
+                sum_linear_pressure = sum(map(float, all_linear_pressure))
+
+                if sum_pass_pressure and sum_linear_pressure:
+                    result = klapan_full_pressure + branch_pressure + sum_pass_pressure + sum_linear_pressure
+                    result = "{:.3f}".format(round(result, 3))
+                    rows[i].itemAtPosition(0, 20).widget().setText(result)
+                else:
+                    rows[i].itemAtPosition(0, 20).widget().setText('')
+            else:
+                rows[i].itemAtPosition(0, 20).widget().setText('')
+
+
+    def get_all_rows(self) -> list:
+        sorted_rows = sorted([widget for widget in self.scroll_area.findChildren(QGridLayout)], key=lambda w: self.main_box.indexOf(w.parent()))
+        rows = list(filter(lambda w: 'row' in w.objectName(), sorted_rows))
+        return rows
+
+
+    def get_main_rows(self) -> list:
+        sorted_rows = sorted([widget for widget in self.scroll_area.findChildren(QGridLayout)], key=lambda w: self.main_box.indexOf(w.parent()))
+        rows = list(filter(lambda w: w.objectName() == 'row', sorted_rows))
+        return rows
+
+
+    def get_sum_main_rows_str(self) -> str:
+        return str(len(self.get_main_rows()))
+
+
+    def get_sum_main_rows_int(self) -> int:
+        return len(self.get_main_rows())
+
+
+    def get_sum_all_rows_int(self) -> int:
+        return len(self.get_all_rows())
+
+
+    def get_sum_all_rows_str(self) -> int:
+        return str(len(self.get_all_rows()))
+
+
+    def open_manual(self):
+        if platform.system() == "Windows":
+            os.startfile(os.path.join(basedir, 'natural_air_system_manual.pdf'))
 
 
 
