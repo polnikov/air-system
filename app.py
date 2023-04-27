@@ -1,11 +1,14 @@
 import os
 import platform
 import math
+import requests
+import urllib.request
+from urllib.parse import urlparse
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
 from PySide6.QtCore import QSize, Qt, QRegularExpression
-from PySide6.QtGui import QRegularExpressionValidator, QColor, QFont, QIcon, QRegularExpressionValidator, QAction
+from PySide6.QtGui import QRegularExpressionValidator, QFont, QIcon, QRegularExpressionValidator, QAction
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -23,8 +26,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QWidget,
     QTabWidget,
-    QTableWidgetItem,
     QScrollArea,
+    QFileDialog,
 )
 
 from constants import CONSTANTS
@@ -48,7 +51,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.app_title = f'{CONSTANTS.APP_TITLE}_v{version}'
         self.setWindowTitle(self.app_title)
-        self.box_style = "QGroupBox::title {color: blue;}"
+        self.box_style = "QGroupBox::title { color: blue; }"
         self.table_style = '''
             QTableWidget {
                 font-family: Consolas;
@@ -65,22 +68,55 @@ class MainWindow(QMainWindow):
         self.rows_count = 0
 
         menubar = self.menuBar()
-        help_action = QAction("Руководство", self)
-        menubar.addAction(help_action)
-        menubar.triggered.connect(self.open_manual)
-        menubar.setStyleSheet("background-color: #E0E0E0; font-family: Consolas; font-size: 13px; color: blue")
+        file_menu = menubar.addMenu(CONSTANTS.MENU[0])
+
+        manual_action = QAction(CONSTANTS.MENU[1], self)
+        menubar.addAction(manual_action)
+        # manual_action.triggered.connect(self.open_manual)
+
+        help_menu = menubar.addMenu(CONSTANTS.MENU[2])
+
+        # FILE_MENU_HANDLERS = (
+        #     self.open,
+        #     self.save,
+        #     self.save_as,
+        #     self.export,
+        # )
+        # for m in range(4):
+        #     action = QAction(CONSTANTS.FILE_SUBMENU[m], self)
+        #     action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.FILE_MENU_ICONS[m])))
+        #     action.setShortcut(CONSTANTS.FILE_MENU_SHORTCUTS[m])
+        #     file_menu.addAction(action)
+        #     action.triggered.connect(FILE_MENU_HANDLERS[m])
+        #     if m in (0, 2):
+        #         file_menu.addSeparator()
+
+        HELP_MENU_HANDLERS = (
+            self.show_about,
+            self.check_updates,
+        )
+        for h in range(2):
+            action = QAction(CONSTANTS.HELP_SUBMENU[h], self)
+            action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.HELP_MENU_ICONS[h])))
+            help_menu.addAction(action)
+            action.triggered.connect(HELP_MENU_HANDLERS[h])
+
+
+        menubar.setStyleSheet('font-family: Consolas; font-size: 11px;')
+
+
+
 
         self.tab_widget = QTabWidget(self)
         self.setCentralWidget(self.tab_widget)
         self.tab_widget.addTab(self.create_tab1_content(), CONSTANTS.TAB1_TITLE)
         self.tab_widget.addTab(self.create_tab2_content(), CONSTANTS.TAB2_TITLE)
 
-        self.showMaximized()
-
 
     def create_tab1_content(self) -> object:
         _widget = QWidget()
         _layout = QVBoxLayout()
+        # _widget.setStyleSheet('background-color: transparent;')
 
         _hbox1 = QHBoxLayout()
         _hbox1.addWidget(self.create_init_data_box())
@@ -95,14 +131,14 @@ class MainWindow(QMainWindow):
         _hbox3.setContentsMargins(5, 2, 2, 2)
         scroll_area = QScrollArea()
         self.scroll_area = scroll_area
-        scroll_area.setStyleSheet('background-color: transparent;')
+        scroll_area.setStyleSheet('background-color: transparent; border: 0')
         scroll_area.setWidgetResizable(True)
         _hbox3.addWidget(scroll_area)
         scroll_widget = QWidget(scroll_area)
         scroll_area.setWidget(scroll_widget)
         self.main_box = QVBoxLayout(scroll_widget)
         self.main_box.setContentsMargins(1, 1, 1, 1)
-        self.main_box.setSpacing(1)
+        self.main_box.setSpacing(0)
         self.main_box.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.main_box.addWidget(self.create_header())
 
@@ -144,7 +180,7 @@ class MainWindow(QMainWindow):
             label_0.setFixedWidth(320)
             line_edit = QLineEdit()
             line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            line_edit.setStyleSheet('QLineEdit {background-color: #E5FFCC }')
+            line_edit.setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
             line_edit.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
             line_edit.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
             label_1 = QLabel(labels[i][1])
@@ -200,7 +236,7 @@ class MainWindow(QMainWindow):
         self.klapan_widget = QComboBox()
         klapan_widget = self.klapan_widget
         klapan_widget.setObjectName("klapan_widget")
-        klapan_widget.setStyleSheet('QComboBox { background-color: #E5FFCC } QAbstractItemView { background-color: #E5FFCC }')
+        klapan_widget.setStyleSheet('QComboBox { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; } QAbstractItemView { background-color: #E5FFCC }')
         klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
         klapan_widget.setFixedWidth(170)
@@ -209,6 +245,7 @@ class MainWindow(QMainWindow):
         klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
         klapan_widget.currentTextChanged.connect(self.calculate_sputnik_klapan_pressure_loss)
         klapan_widget.currentTextChanged.connect(self.activate_klapan_input)
+        klapan_widget.currentTextChanged.connect(self.calculate_sputnik_result_pressure)
         klapan_layout = QHBoxLayout()
         klapan_layout.addWidget(klapan_label)
         klapan_layout.addWidget(klapan_widget)
@@ -221,7 +258,7 @@ class MainWindow(QMainWindow):
         klapan_input.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
         klapan_input.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         klapan_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        klapan_input.setStyleSheet('QLineEdit {background-color: #E0E0E0 }')
+        klapan_input.setStyleSheet('QLineEdit { background-color: #E0E0E0; border: 0; border-radius: 5px; }')
         klapan_input.setDisabled(True)
         klapan_input_regex = QRegularExpression("^(?:[1-9]|[1-9]\d|100)(?:)?$")
         klapan_input_validator = QRegularExpressionValidator(klapan_input_regex)
@@ -244,7 +281,8 @@ class MainWindow(QMainWindow):
         _widget = QWidget()
         _layout = QHBoxLayout()
 
-        label = QLabel('Добавить дефлектор')
+        label = QLabel(CONSTANTS.BUTTONS.ADD_DEFLECTOR)
+        label.setStyleSheet('QLabel { color: blue; }')
         self.activate_deflector = QCheckBox()
         activate_deflector = self.activate_deflector
         activate_deflector.setDisabled(True)
@@ -267,7 +305,17 @@ class MainWindow(QMainWindow):
         self.add_row_button = QPushButton()
         add_row_button = self.add_row_button
         add_row_button.setText(CONSTANTS.BUTTONS.ADD_BUTTON_TITLE)
-        add_row_button.setStyleSheet('QPushButton:hover {background-color: rgb(102, 204, 0)}')
+        add_row_button.setFixedHeight(40)
+        add_row_button.setFixedWidth(70)
+        add_row_button.setStyleSheet('''
+            QPushButton {
+                background-color: #66CC00; border-radius: 5px;
+            }
+            QPushButton:hover {
+                border: 2px solid grey;
+                background: transparent;
+            }
+        ''')
         add_row_button.setToolTip(CONSTANTS.BUTTONS.ADD_BUTTON_TOOLTIP)
         _layout.addWidget(add_row_button)
         add_row_button.clicked.connect(self.add_row)
@@ -280,8 +328,9 @@ class MainWindow(QMainWindow):
         input_regex = QRegularExpression('^[1-9]{1,2}$|^100$')
         input_validator = QRegularExpressionValidator(input_regex)
         input.setValidator(input_validator)
-        input.setStyleSheet('QLineEdit {background-color: #FFCCCC; border: 1px solid grey; border-radius: 5px}')
-        input.setFixedHeight(33)
+        input.setStyleSheet('QLineEdit { background-color: #FFCCCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+        input.setToolTip(CONSTANTS.BUTTONS.ADD_FLOOR_FOR_DELETE_TOOLTIP)
+        input.setFixedHeight(40)
         input.setFixedWidth(40)
         input.setAlignment(Qt.AlignmentFlag.AlignCenter)
         _layout.addWidget(input)
@@ -289,7 +338,17 @@ class MainWindow(QMainWindow):
         self.delete_row_button = QPushButton()
         delete_row_button = self.delete_row_button
         delete_row_button.setText(CONSTANTS.BUTTONS.DELETE_BUTTON_TITLE)
-        delete_row_button.setStyleSheet('QPushButton:hover {background-color: rgb(255, 153, 153)}')
+        delete_row_button.setFixedHeight(40)
+        delete_row_button.setFixedWidth(70)
+        delete_row_button.setStyleSheet('''
+            QPushButton {
+                background-color: #FF9999; border-radius: 5px;
+            }
+            QPushButton:hover {
+                border: 2px solid grey;
+                background: transparent;
+            }
+        ''')
         delete_row_button.setToolTip(CONSTANTS.BUTTONS.DELETE_BUTTON_TOOLTIP)
         _layout.addWidget(delete_row_button)
         delete_row_button.clicked.connect(self.delete_row)
@@ -312,7 +371,7 @@ class MainWindow(QMainWindow):
         for i in range(len(labels)):
             label = QLabel(labels[i])
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setStyleSheet('QLabel { background-color: #E0E0E0 }')
+            label.setStyleSheet('QLabel { background-color: #E0E0E0; border-radius: 5px; }')
             match i:
                 case 0:
                     label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
@@ -325,9 +384,9 @@ class MainWindow(QMainWindow):
             label.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEADER_HEIGHT)
             _layout.addWidget(label, 0, i)
 
-        input_edit_style = 'QLineEdit { background-color: #E5FFCC }'
-        result_style = 'QLineEdit { background-color: #99FFFF; border: 0 }'
-        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0 }'
+        input_edit_style = 'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
+        result_style = 'QLineEdit { background-color: #99FFFF; border: 0; border-radius: 5px; }'
+        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }'
 
         self.klapan_flow = QLineEdit()
         klapan_flow = self.klapan_flow
@@ -354,14 +413,14 @@ class MainWindow(QMainWindow):
         klapan.setAlignment(Qt.AlignmentFlag.AlignCenter)
         klapan.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
         klapan.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
-        klapan.setStyleSheet('QLabel { background-color: #E0E0E0; }')
+        klapan.setStyleSheet('QLabel { background-color: #E0E0E0; font-size: 11px; border-radius: 5px; }')
         klapan.setToolTip(CONSTANTS.SPUTNIK_TABLE.KLAPAN_FLOW_TOOLTIP)
         _layout.addWidget(klapan, 1, 0)
 
         for i in (2, 4):
             label = QLabel(CONSTANTS.SPUTNIK_TABLE.SECTORS.get(i))
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setStyleSheet('QLabel { background-color: #E0E0E0; }')
+            label.setStyleSheet('QLabel { background-color: #E0E0E0; border-radius: 5px;}')
             label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
             label.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
             _layout.addWidget(label, i, 0)
@@ -401,10 +460,12 @@ class MainWindow(QMainWindow):
                         edit.textChanged.connect(self.copy_sputnik_dimensions)
                     case 5:
                         edit.textChanged.connect(self.calculate_sputnik_dynamic)
+                        edit.textChanged.connect(self.calculate_sputnik_specific_pressure_loss)
                     case 6:
                         edit.textChanged.connect(self.calculate_sputnik_specific_pressure_loss)
                     case 10 | 11:
                         edit.textChanged.connect(self.calculate_sputnik_local_pressure_loss)
+                        edit.textChanged.connect(self.calculate_sputnik_specific_pressure_loss)
                     case 9 | 12:
                         edit.textChanged.connect(self.calculate_sputnik_full_pressure_loss)
                 _layout.addWidget(edit, line, i)
@@ -437,7 +498,7 @@ class MainWindow(QMainWindow):
         cell_2_1.textChanged.connect(self.calculate_sputnik_air_velocity)
         cell_2_1.textChanged.connect(self.set_sputnik_airflow_in_table)
         cell_2_1.textChanged.connect(self.calculate_kms)
-        cell_2_1.textChanged.connect(self.calculate_sputnik_result_pressure)
+        # cell_2_1.textChanged.connect(self.calculate_sputnik_result_pressure)
 
         cell_4_1 = _layout.itemAtPosition(4, 1).widget()
         cell_4_1.textChanged.connect(self.calculate_sputnik_air_velocity)
@@ -485,9 +546,9 @@ class MainWindow(QMainWindow):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             match i:
                 case 6:
-                    label.setStyleSheet('QLabel { background-color: #CCCCFF; }')
+                    label.setStyleSheet('QLabel { background-color: #CCCCFF; border-radius: 5px; }')
                 case _:
-                    label.setStyleSheet('QLabel { background-color: #E0E0E0; }')
+                    label.setStyleSheet('QLabel { background-color: #E0E0E0; border-radius: 5px; }')
 
             match i:
                 case 0:
@@ -519,8 +580,8 @@ class MainWindow(QMainWindow):
         _layout = QGridLayout()
         _layout.setObjectName(CONSTANTS.MAIN_TABLE.ROW_NAME)
 
-        input_edit_style = 'QLineEdit { background-color: #E5FFCC }'
-        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0 }'
+        input_edit_style = 'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
+        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }'
 
         for i in range(len(CONSTANTS.MAIN_TABLE.LABELS)):
             edit = QLineEdit()
@@ -538,11 +599,11 @@ class MainWindow(QMainWindow):
 
             match i:
                 case 0:
-                    edit.setStyleSheet('QLineEdit { background-color: #E0E0E0; border: 0 }')
+                    edit.setStyleSheet('QLineEdit { background-color: #E0E0E0; border: 0; border-radius: 5px; }')
                 case 1 | 2 | 10 | 11:
                     edit.setStyleSheet(input_edit_style)
                 case 6:
-                    edit.setStyleSheet('QLineEdit { background-color: transparent; border: 0 }')
+                    edit.setStyleSheet('QLineEdit { background-color: transparent; border: 0; border-radius: 5px; }')
                     edit.setReadOnly(True)
                 case _:
                     edit.setReadOnly(True)
@@ -610,8 +671,8 @@ class MainWindow(QMainWindow):
         self.last_row = _layout
         _layout.setObjectName(CONSTANTS.MAIN_TABLE.LAST_ROW_NAME)
 
-        input_edit_style = 'QLineEdit { background-color: #E5FFCC }'
-        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0 }'
+        input_edit_style = 'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
+        read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }'
 
         for i in range(len(CONSTANTS.MAIN_TABLE.LABELS)):
             edit = QLineEdit()
@@ -629,11 +690,11 @@ class MainWindow(QMainWindow):
 
             match i:
                 case 0:
-                    edit.setStyleSheet('QLineEdit { background-color: #FFCCCC; border: 0 }')
+                    edit.setStyleSheet('QLineEdit { background-color: #FFCCCC; border: 0; border-radius: 5px; }')
                 case 1 | 2 | 8 | 9 | 10 | 11:
                     edit.setStyleSheet(input_edit_style)
                 case 6:
-                    edit.setStyleSheet('QLineEdit { background-color: #CCCCFF; }')
+                    edit.setStyleSheet('QLineEdit { background-color: #CCCCFF; border-radius: 5px; }')
                 case _:
                     edit.setReadOnly(True)
                     edit.setStyleSheet(read_only_edit_style)
@@ -761,7 +822,6 @@ class MainWindow(QMainWindow):
             klapan_flow = hand_klapan_flow
         else:
             klapan_flow = klapan_widget_value
-
         if all([current_klapan_flow, klapan_flow]):
             current_klapan_flow = int(current_klapan_flow)
             klapan_flow = int(klapan_flow)
@@ -811,61 +871,31 @@ class MainWindow(QMainWindow):
 
     def calculate_sputnik_specific_pressure_loss(self, value) -> None:
         sputnik = self.sputnik
-        row, _, _, _ = sputnik.getItemPosition(sputnik.indexOf(self.sender()))
-        name = self.sender().objectName()
-
-        match name:
-            case 'temperature' | 'surface':
-                temperature = self.temperature_widget.text()
-                surface = self.surface_widget.text()
-                for row in (2, 4):
-                    velocity = sputnik.itemAtPosition(row, 5).widget().text()
-                    diameter = sputnik.itemAtPosition(row, 6).widget().text()
-                    dynamic = sputnik.itemAtPosition(row, 10).widget().text()
-                    if all([temperature, diameter, velocity, surface, dynamic]):
-                        try:
-                            temperature = float(temperature)
-                            velocity = float(velocity)
-                            diameter = float(diameter)
-                            surface = float(surface)
-                            dynamic = float(dynamic)
-                            mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
-                            density = 353 / (273.15 + temperature)
-                            v = mu / density
-                            re = velocity * diameter / v
-                            lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
-                            result = (lam / diameter) * dynamic
-                            result = "{:.4f}".format(round(result, 4))
-                            sputnik.itemAtPosition(row, 7).widget().setText(result)
-                        except ZeroDivisionError:
-                            sputnik.itemAtPosition(row, 7).widget().setText('')
-                    else:
-                        sputnik.itemAtPosition(row, 7).widget().setText('')
-            case _:
-                temperature = self.temperature_widget.text()
-                surface = self.surface_widget.text()
-                velocity = sputnik.itemAtPosition(row, 5).widget().text()
-                diameter = sputnik.itemAtPosition(row, 6).widget().text()
-                dynamic = sputnik.itemAtPosition(row, 10).widget().text()
-                if all([temperature, diameter, velocity, surface, dynamic]):
-                    try:
-                        temperature = float(temperature)
-                        velocity = float(velocity)
-                        diameter = float(diameter)
-                        surface = float(surface)
-                        dynamic = float(dynamic)
-                        mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
-                        density = 353 / (273.15 + temperature)
-                        v = mu / density
-                        re = velocity * diameter / v
-                        lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
-                        result = (lam / diameter) * dynamic
-                        result = "{:.4f}".format(round(result, 4))
-                        sputnik.itemAtPosition(row, 7).widget().setText(result)
-                    except ZeroDivisionError:
-                        sputnik.itemAtPosition(row, 7).widget().setText('')
-                else:
+        temperature = self.temperature_widget.text()
+        surface = self.surface_widget.text()
+        for row in (2, 4):
+            velocity = sputnik.itemAtPosition(row, 5).widget().text()
+            diameter = sputnik.itemAtPosition(row, 6).widget().text()
+            dynamic = sputnik.itemAtPosition(row, 10).widget().text()
+            if all([temperature, diameter, velocity, surface, dynamic]):
+                try:
+                    temperature = float(temperature)
+                    velocity = float(velocity)
+                    diameter = float(diameter)
+                    surface = float(surface)
+                    dynamic = float(dynamic)
+                    mu = 1.458 * pow(10, -6) * pow((273.15 + temperature), 1.5) / ((273.15 + temperature) + 110.4)
+                    density = 353 / (273.15 + temperature)
+                    v = mu / density
+                    re = velocity * diameter / v
+                    lam = 0.11 * pow(((surface / 1_000) / diameter + 68 / re), 0.25)
+                    result = (lam / diameter) * dynamic
+                    result = "{:.4f}".format(round(result, 4))
+                    sputnik.itemAtPosition(row, 7).widget().setText(result)
+                except ZeroDivisionError:
                     sputnik.itemAtPosition(row, 7).widget().setText('')
+            else:
+                sputnik.itemAtPosition(row, 7).widget().setText('')
 
 
     def calculate_sputnik_dynamic(self, value) -> None:
@@ -977,7 +1007,6 @@ class MainWindow(QMainWindow):
         klapan_pressure = self.sputnik.itemAtPosition(1, 13).widget().text()
         one_side_pressure = self.sputnik.itemAtPosition(2, 13).widget().text()
         two_side_pressure = self.sputnik.itemAtPosition(4, 13).widget().text()
-
         if all([klapan_pressure, one_side_pressure]):
             klapan_pressure = float(klapan_pressure)
             one_side_pressure = float(one_side_pressure)
@@ -1158,11 +1187,11 @@ class MainWindow(QMainWindow):
     def activate_klapan_input(self, value) -> None:
         if value == 'Другой':
             self.klapan_input.setDisabled(False)
-            self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(229, 255, 204).name())
+            self.klapan_input.setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
         else:
             self.klapan_input.setText('')
             self.klapan_input.setDisabled(True)
-            self.klapan_input.setStyleSheet('QLineEdit {background-color: %s}' % QColor(224, 224, 224).name())
+            self.klapan_input.setStyleSheet('QLineEdit { background-color: #E0E0E0; border: 0; border-radius: 5px; }')
 
 
     def create_deflector_calculation(self) -> object:
@@ -1180,14 +1209,14 @@ class MainWindow(QMainWindow):
                 line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 line_edit.setFixedWidth(60)
                 line_edit.setFixedHeight(30)
-                line_edit.setStyleSheet('QLineEdit {background-color: #E5FFCC }')
+                line_edit.setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
                 _layout.addWidget(line_edit, 0, 1)
             else:
                 line_label = QLineEdit()
                 line_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 line_label.setFixedWidth(60)
                 line_label.setFixedHeight(30)
-                line_label.setStyleSheet('QLineEdit {background-color: #EFEFEF; border: 0 }')
+                line_label.setStyleSheet('QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
                 line_label.setReadOnly(True)
                 _layout.addWidget(line_label, i, 1)
 
@@ -1208,7 +1237,7 @@ class MainWindow(QMainWindow):
         pressure_relation = _layout.itemAtPosition(7, 1).widget()
         deflector_pressure = _layout.itemAtPosition(8, 1).widget()
         deflector_pressure.setObjectName(CONSTANTS.DEFLECTOR.NAME)
-        deflector_pressure.setStyleSheet('QLineEdit { background-color: #CCCCFF; border: 0 }')
+        deflector_pressure.setStyleSheet('QLineEdit { background-color: #CCCCFF; border: 0; border-radius: 5px; }')
 
         wind_velocity.textChanged.connect(self.calculate_deflector_recommended_velocity)
         recommended_velocity.textChanged.connect(self.calculate_deflector_required_square)
@@ -1572,30 +1601,37 @@ class MainWindow(QMainWindow):
                     main_b = main_a
 
                 if all([floor_flow, main_a, main_b]):
-                    floor_flow = float(floor_flow)
-                    main_a, main_b = int(main_a), int(main_b)
+                    try:
+                        floor_flow = float(floor_flow)
+                        main_a, main_b = int(main_a), int(main_b)
 
-                    x_l = sputnik_flow / floor_flow
-                    y_f = ((sputnik_a * sputnik_b) / 1_000_000) / ((main_a * main_b) / 1_000_000)
+                        Fk = (main_a / 1_000) * (main_b / 1_000)
+                        Fs = (sputnik_a / 1_000) * (sputnik_b / 1_000)
+                        flow_relation = sputnik_flow / floor_flow
 
-                    if x_l > 1:
-                        x_l = 1
-                    elif x_l < 0:
-                        x_l = 0
+                        kms_1 = (1.55 * flow_relation - pow(flow_relation, 2))
+                        pass_kms = kms_1 / (pow(1 - flow_relation, 2) * pow(Fk / Fk, 2))
 
-                    if y_f > 1:
-                        y_f = 1
-                    elif y_f < 0.1:
-                        y_f = 0.1
+                        if (Fs / Fk <= 0.35) and (flow_relation <= 1):
+                            A = 1
+                        elif sputnik_flow / floor_flow <= 0.4:
+                            A = 0.9 * (1 - sputnik_flow / floor_flow)
+                        else:
+                            A = 0.55
+                        kms_2 = A * (1 + pow(flow_relation * (Fk / Fs), 2) - 2 * pow(1 - flow_relation, 2))
+                        branch_kms = kms_2 / pow(flow_relation * (Fk / Fs), 2)
 
-                    pass_kms = self._interpol_kms(x_l, y_f, type='pass_kms')
-                    rows[i].itemAtPosition(0, 8).widget().setText(pass_kms)
+                        pass_kms = "{:.3f}".format(round(pass_kms, 3))
+                        rows[i].itemAtPosition(0, 8).widget().setText(pass_kms)
 
-                    if i == len(rows) - 1:
-                        rows[i].itemAtPosition(0, 9).widget().setText('3.7')
-                    else:
-                        branch_kms = self._interpol_kms(x_l, y_f, type='branch_kms')
-                        rows[i].itemAtPosition(0, 9).widget().setText(branch_kms)
+                        if i == len(rows) - 1:
+                            rows[i].itemAtPosition(0, 9).widget().setText('3.7')
+                        else:
+                            branch_kms = "{:.3f}".format(round(branch_kms, 3))
+                            rows[i].itemAtPosition(0, 9).widget().setText(str(branch_kms))
+                    except ZeroDivisionError:
+                        rows[i].itemAtPosition(0, 8).widget().setText('')
+                        rows[i].itemAtPosition(0, 9).widget().setText('')
                 else:
                     rows[i].itemAtPosition(0, 8).widget().setText('')
                     rows[i].itemAtPosition(0, 9).widget().setText('')
@@ -1603,26 +1639,6 @@ class MainWindow(QMainWindow):
             rows = self.get_main_rows()
             for i in range(len(rows)):
                 rows[i].itemAtPosition(0, 8).widget().setText('')
-
-
-    def _interpol_kms(self, x_l, y_f, type) -> str:
-        match type:
-            case 'pass_kms':
-                pass_axis_x = CONSTANTS.REFERENCE_DATA.KMS_PASS.X_L
-                pass_axis_y = CONSTANTS.REFERENCE_DATA.KMS_PASS.Y_F
-                pass_z = array(CONSTANTS.REFERENCE_DATA.KMS_PASS.TABLE)
-                pass_interpolator = RegularGridInterpolator((pass_axis_y, pass_axis_x), pass_z)
-                pass_kms = pass_interpolator((y_f, x_l))
-                pass_kms = "{:.2f}".format(around(pass_kms, 2))
-                return pass_kms
-            case 'branch_kms':
-                branch_axis_x = CONSTANTS.REFERENCE_DATA.KMS_BRANCH.X_L
-                branch_axis_y = CONSTANTS.REFERENCE_DATA.KMS_BRANCH.Y_F
-                branch_z = array(CONSTANTS.REFERENCE_DATA.KMS_BRANCH.TABLE)
-                branch_interpolator = RegularGridInterpolator((branch_axis_y, branch_axis_x), branch_z)
-                branch_kms = branch_interpolator((y_f, x_l))
-                branch_kms = "{:.2f}".format(around(branch_kms, 2))
-                return branch_kms
 
 
     def calculate_pass_pressure(self, value) -> None:
@@ -1791,6 +1807,40 @@ class MainWindow(QMainWindow):
             os.startfile(os.path.join(basedir, 'natural_air_system_manual.pdf'))
 
 
+    def show_about(self) -> None:
+        QMessageBox.information(self, "О программе", CONSTANTS.ABOUT)
+
+
+    def check_updates(self) -> None:
+        current_version = tuple(map(int, version.split(".")))
+        url = 'https://api.github.com/repos/polnikov/recalculation-smoke-exhaust-fan/releases/latest'
+        response = requests.get(url)
+        data = response.json()
+        latest_version = tuple(map(int, data['tag_name'].replace('v', '').split(".")))
+        download_url = data['assets'][0]['browser_download_url']
+
+        if latest_version > current_version:
+            reply = QMessageBox.information(
+                self, 'Проверка обновления',
+                f'Новая версия {".".join(map(str, latest_version))} доступна для загрузки. Загрузить сейчас?',
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                save_path, _ = QFileDialog.getSaveFileName(self, 'Сохранить новую версию', os.path.basename(urlparse(download_url).path))
+                if save_path:
+                    file_content = self._download_file(download_url)
+                    with open(save_path, "wb") as f:
+                        f.write(file_content)
+        else:
+            QMessageBox.information(self, 'Проверка обновления', 'Вы используете последнюю версию')
+
+
+    def _download_file(url):
+        response = urllib.request.urlopen(url)
+        data = response.read()
+        return data
+
+
 
 
 
@@ -1806,5 +1856,6 @@ if __name__ == '__main__':
     window = MainWindow()
     window.setWindowIcon(QIcon(os.path.join(basedir, 'app.ico')))
     window.setIconSize(QSize(15, 15))
+    window.resize(2520, 1680)
     window.show()
     sys.exit(app.exec())
