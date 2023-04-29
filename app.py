@@ -46,6 +46,16 @@ except ImportError:
 version = '1.0.0'
 
 
+class CustomComboBox(QComboBox):
+    def showPopup(self):
+        count = self.count()
+        if count >= 30:
+            self.view().setFixedHeight(self.view().sizeHintForRow(0) * 30)
+        else:
+            self.view().setFixedHeight(self.view().sizeHintForRow(0) * count)
+        super().showPopup()
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -124,6 +134,7 @@ class MainWindow(QMainWindow):
 
         _hbox2 = QHBoxLayout()
         _hbox2.addWidget(self.create_deflector_checkbox())
+        _hbox2.addWidget(self.create_channel_cap())
         _hbox2.addWidget(self.create_buttons_box())
         _layout.setAlignment(_hbox2, Qt.AlignmentFlag.AlignTop)
 
@@ -146,6 +157,7 @@ class MainWindow(QMainWindow):
         for i in range(4):
             self.main_box.insertWidget(2, self.create_row())
         self.last_row.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
+        self.change_dimensions_cells_in_table()
 
         _layout.addLayout(_hbox1)
         _layout.addLayout(_hbox2)
@@ -203,6 +215,7 @@ class MainWindow(QMainWindow):
         temperature_widget.textChanged.connect(self.calculate_specific_pressure_loss)
         temperature_widget.textChanged.connect(self.calculate_branch_pressure)
         temperature_widget.textChanged.connect(self.calculate_pass_pressure)
+        temperature_widget.textChanged.connect(self.calculate_channel_cap)
 
         surface_item = _init_data.itemAtPosition(1, 1)
         self.surface_widget = surface_item.widget()
@@ -211,6 +224,7 @@ class MainWindow(QMainWindow):
         surface_regex = QRegularExpression("^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$")
         surface_validator = QRegularExpressionValidator(surface_regex)
         surface_widget.setValidator(surface_validator)
+        surface_widget.setToolTip(CONSTANTS.INIT_DATA.SURFACE_INPUT_TOOLTIP)
         surface_widget.textChanged.connect(self.calculate_sputnik_specific_pressure_loss)
         surface_widget.textChanged.connect(self.calculate_specific_pressure_loss)
 
@@ -233,12 +247,15 @@ class MainWindow(QMainWindow):
         channel_height_widget.textChanged.connect(self.calculate_height)
 
         klapan_label = QLabel(CONSTANTS.INIT_DATA.KLAPAN_LABEL)
-        self.klapan_widget = QComboBox()
+        self.klapan_widget = CustomComboBox()
         klapan_widget = self.klapan_widget
         klapan_widget.setObjectName("klapan_widget")
         klapan_widget.setStyleSheet('QComboBox { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; } QAbstractItemView { background-color: #E5FFCC }')
         klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
+        for i in (1, 3, 8, 14, 21, 25, 29, 38, 47, 51):
+            klapan_widget.insertSeparator(i)
+        klapan_widget.model().item(0).setEnabled(False)
         klapan_widget.setFixedWidth(170)
         self.klapan_widget_value = CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(klapan_widget.currentText())
         self.klapan_air_flow_label = QLabel(f'{self.klapan_widget_value} м<sup>3</sup>/ч')
@@ -265,6 +282,7 @@ class MainWindow(QMainWindow):
         klapan_input.setValidator(klapan_input_validator)
         klapan_input.setToolTip(CONSTANTS.INIT_DATA.KLAPAN_INPUT_TOOLTIP)
         klapan_input.textChanged.connect(self.calculate_sputnik_klapan_pressure_loss)
+        klapan_input.textChanged.connect(self.calculate_sputnik_result_pressure)
 
         _init_data.addLayout(klapan_layout, 4, 0, 1, 2)
         _init_data.addWidget(self.klapan_air_flow_label, 4, 2)
@@ -289,11 +307,134 @@ class MainWindow(QMainWindow):
         activate_deflector.setChecked(False)
         activate_deflector.stateChanged.connect(self.show_deflector_in_table)
         activate_deflector.stateChanged.connect(self.calculate_available_pressure)
+        activate_deflector.stateChanged.connect(self.activate_channel_cap)
 
         _layout.addWidget(label)
         _layout.addWidget(activate_deflector)
         _widget.setLayout(_layout)
         return _widget
+
+
+    def create_channel_cap(self) -> object:
+        _widget = QWidget()
+        self.channel_cap_widget = _widget
+        _layout = QGridLayout()
+        self.channel_cap_grid = _layout
+        _layout.setObjectName(CONSTANTS.CAP.NAME)
+
+        label_1 = QLabel(CONSTANTS.CAP.LABEL_1)
+        label_1.setStyleSheet('QLabel { color: blue; }')
+        # label_1.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
+        label_1.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        label_1.setFixedWidth(135)
+        _layout.addWidget(label_1, 0, 0)
+
+        self.cap_type = QComboBox()
+        cap_type = self.cap_type
+        cap_type.setStyleSheet('QComboBox { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; } QAbstractItemView { background-color: #E5FFCC }')
+        cap_type.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        cap_type.setFixedWidth(125)
+        cap_type.addItems(CONSTANTS.CAP.TYPES)
+        cap_type.model().item(0).setEnabled(False)
+
+        cap_type.currentTextChanged.connect(self.change_channel_cap_visibility)
+        cap_type.currentTextChanged.connect(self.set_channel_cap_tooltip)
+        cap_type.currentTextChanged.connect(self.set_channel_cap_relations)
+        cap_type.currentTextChanged.connect(self.calculate_channel_cap)
+        _layout.addWidget(cap_type, 0, 1)
+
+        label_2 = QLabel('h')
+        label_2.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        label_2.setFixedWidth(10)
+        label_2.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label_2.hide()
+        _layout.addWidget(label_2, 0, 2)
+
+        self.input_h = QLineEdit()
+        input = self.input_h
+        input_regex = QRegularExpression(r'^0$|^1$|^2$|^[01]\.\d{1,2}$')
+        input_validator = QRegularExpressionValidator(input_regex)
+        input.setValidator(input_validator)
+        input.setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+        # input.setToolTip(CONSTANTS.BUTTONS.ADD_FLOOR_FOR_DELETE_TOOLTIP)
+        input.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        input.setFixedWidth(40)
+        input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        input.hide()
+
+        input.textChanged.connect(self.calculate_channel_cap)
+        _layout.addWidget(input, 0, 3)
+
+        label_3 = QLabel('м')
+        label_3.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        label_3.setFixedWidth(10)
+        label_3.hide()
+        _layout.addWidget(label_3, 0, 4)
+
+        label_4 = QLabel('h/Do')
+        label_4.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        label_4.setFixedWidth(30)
+        label_4.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label_4.hide()
+        _layout.addWidget(label_4, 0, 5)
+
+        self.fact_relation = QLabel()
+        fact_relation = self.fact_relation
+        fact_relation.setStyleSheet('QLabel { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
+        # pressure.setToolTip(CONSTANTS.BUTTONS.ADD_FLOOR_FOR_DELETE_TOOLTIP)
+        fact_relation.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        fact_relation.setFixedWidth(40)
+        fact_relation.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        fact_relation.setToolTip('Фактическое соотношение')
+        fact_relation.hide()
+        _layout.addWidget(fact_relation, 0, 6)
+
+        self.relations = CustomComboBox()
+        relations = self.relations
+        relations.setStyleSheet('QComboBox { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; } QAbstractItemView { background-color: #E5FFCC }')
+        relations.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        relations.setFixedWidth(100)
+        # relation.addItems(CONSTANTS.CAP.RELATIONS.keys())
+        # self.relation_value = CONSTANTS.CAP.TYPES.get(relation.currentText())
+        relations.hide()
+
+        relations.currentTextChanged.connect(self.calculate_channel_cap)
+        _layout.addWidget(relations, 0, 7)
+
+        label_5 = QLabel('Pш')
+        label_5.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        label_5.setFixedWidth(15)
+        label_5.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label_5.hide()
+        _layout.addWidget(label_5, 0, 8)
+
+        self.pressure = QLabel()
+        pressure = self.pressure
+        pressure.setStyleSheet('QLabel { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
+        # pressure.setToolTip(CONSTANTS.BUTTONS.ADD_FLOOR_FOR_DELETE_TOOLTIP)
+        pressure.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        pressure.setFixedWidth(50)
+        pressure.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pressure.hide()
+        _layout.addWidget(pressure, 0, 9)
+
+        label_6 = QLabel('Па')
+        label_6.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
+        label_6.setFixedWidth(15)
+        label_6.hide()
+        _layout.addWidget(label_6, 0, 10)
+
+
+
+
+
+
+
+        # _layout.setSpacing(3)
+        # _widget.setFixedWidth(650)
+        _widget.setLayout(_layout)
+        return _widget
+
 
 
     def create_buttons_box(self) -> object:
@@ -322,6 +463,7 @@ class MainWindow(QMainWindow):
         add_row_button.clicked.connect(self.set_full_air_flow_in_deflector)
         add_row_button.clicked.connect(self.set_sputnik_airflow_in_table)
         add_row_button.clicked.connect(self.calculate_height)
+        add_row_button.clicked.connect(self.change_dimensions_cells_in_table)
 
         self.input_for_delete = QLineEdit()
         input = self.input_for_delete
@@ -354,6 +496,7 @@ class MainWindow(QMainWindow):
         delete_row_button.clicked.connect(self.delete_row)
         delete_row_button.clicked.connect(self.set_sputnik_airflow_in_table)
         delete_row_button.clicked.connect(self.set_full_air_flow_in_deflector)
+        delete_row_button.clicked.connect(self.change_dimensions_cells_in_table)
 
         _widget.setLayout(_layout)
         return _widget
@@ -414,7 +557,6 @@ class MainWindow(QMainWindow):
         klapan.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
         klapan.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
         klapan.setStyleSheet('QLabel { background-color: #E0E0E0; font-size: 11px; border-radius: 5px; }')
-        klapan.setToolTip(CONSTANTS.SPUTNIK_TABLE.KLAPAN_FLOW_TOOLTIP)
         _layout.addWidget(klapan, 1, 0)
 
         for i in (2, 4):
@@ -515,6 +657,8 @@ class MainWindow(QMainWindow):
         self.cell_5_13 = _layout.itemAtPosition(5, 13).widget()
         self.cell_3_13.textChanged.connect(self.calculate_full_pressure)
         self.cell_5_13.textChanged.connect(self.calculate_full_pressure)
+        self.cell_3_13.textChanged.connect(self.calculate_full_pressure_last_row)
+        self.cell_5_13.textChanged.connect(self.calculate_full_pressure_last_row)
 
         cell_2_5 = _layout.itemAtPosition(2, 5).widget()
         cell_2_5.textChanged.connect(self.calculate_branch_pressure)
@@ -617,6 +761,7 @@ class MainWindow(QMainWindow):
                     edit.textChanged.connect(self.set_full_air_flow_in_deflector)
                     edit.textChanged.connect(self.calculate_air_velocity)
                     edit.textChanged.connect(self.calculate_kms)
+                    edit.textChanged.connect(self.calculate_channel_cap)
                 case 4:
                     edit.textChanged.connect(self.calculate_gravi_pressure)
                 case 5 | 6:
@@ -632,18 +777,23 @@ class MainWindow(QMainWindow):
                     edit.textChanged.connect(self.calculate_diameter)
                     edit.textChanged.connect(self.calculate_m)
                     edit.textChanged.connect(self.calculate_kms)
+                    edit.textChanged.connect(self.copy_table_dimensions)
                 case 12:
                     edit.textChanged.connect(self.calculate_dynamic)
                     edit.textChanged.connect(self.calculate_specific_pressure_loss)
                     edit.textChanged.connect(self.calculate_pass_pressure)
+                    edit.textChanged.connect(self.calculate_channel_cap)
                 case 13:
                     edit.textChanged.connect(self.calculate_specific_pressure_loss)
+                    edit.textChanged.connect(self.calculate_channel_cap)
                 case 14 | 15:
                     edit.textChanged.connect(self.calculate_linear_pressure_loss)
                 case 16 | 18 | 19:
                     edit.textChanged.connect(self.calculate_full_pressure)
                 case 17:
                     edit.textChanged.connect(self.calculate_specific_pressure_loss)
+                case 20:
+                    edit.textChanged.connect(self.calculate_channel_cap)
 
             if i in (1, 10, 11):
                 match i:
@@ -691,7 +841,7 @@ class MainWindow(QMainWindow):
             match i:
                 case 0:
                     edit.setStyleSheet('QLineEdit { background-color: #FFCCCC; border: 0; border-radius: 5px; }')
-                case 1 | 2 | 8 | 9 | 10 | 11:
+                case 1 | 2 | 8 | 10 | 11:
                     edit.setStyleSheet(input_edit_style)
                 case 6:
                     edit.setStyleSheet('QLineEdit { background-color: #CCCCFF; border-radius: 5px; }')
@@ -702,11 +852,11 @@ class MainWindow(QMainWindow):
             match i:
                 case 1:
                     edit.textChanged.connect(self.calculate_height)
-                    edit.textChanged.connect(self.calculate_linear_pressure_loss)
                 case 3:
                     edit.textChanged.connect(self.calculate_air_velocity)
                 case 4:
                     edit.textChanged.connect(self.calculate_gravi_pressure)
+                    edit.textChanged.connect(self.calculate_linear_pressure_loss_last_row)
                 case 5 | 6:
                     edit.textChanged.connect(self.calculate_available_pressure)
                 case 8:
@@ -726,11 +876,13 @@ class MainWindow(QMainWindow):
                 case 13:
                     edit.textChanged.connect(self.calculate_specific_pressure_loss)
                 case 14 | 15:
-                    edit.textChanged.connect(self.calculate_linear_pressure_loss)
+                    edit.textChanged.connect(self.calculate_linear_pressure_loss_last_row)
                 case 16 | 18 | 19:
-                    edit.textChanged.connect(self.calculate_full_pressure)
+                    edit.textChanged.connect(self.calculate_full_pressure_last_row)
                 case 17:
                     edit.textChanged.connect(self.calculate_specific_pressure_loss)
+                case 20:
+                    edit.textChanged.connect(self.calculate_channel_cap)
 
             if i in (1, 8, 9, 10, 11):
                 match i:
@@ -749,6 +901,7 @@ class MainWindow(QMainWindow):
 
         _layout.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
         _layout.itemAtPosition(0, 6).widget().hide()
+        _layout.itemAtPosition(0, 9).widget().setText('0')
 
         _layout.setSpacing(3)
         _widget.setLayout(_layout)
@@ -1034,6 +1187,36 @@ class MainWindow(QMainWindow):
                 row.itemAtPosition(0, 1).widget().setText('')
 
 
+    def change_dimensions_cells_in_table(self) -> None:
+        rows = self.get_main_rows()
+        for i in range(len(rows)):
+            if i != len(rows) - 1:
+                rows[i].itemAtPosition(0, 10).widget().setStyleSheet('QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
+                rows[i].itemAtPosition(0, 10).widget().setReadOnly(True)
+                rows[i].itemAtPosition(0, 11).widget().setStyleSheet('QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
+                rows[i].itemAtPosition(0, 11).widget().setReadOnly(True)
+            else:
+                rows[i].itemAtPosition(0, 10).widget().setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+                rows[i].itemAtPosition(0, 10).widget().setReadOnly(False)
+                rows[i].itemAtPosition(0, 11).widget().setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+                rows[i].itemAtPosition(0, 11).widget().setReadOnly(False)
+
+
+    def copy_table_dimensions(self, value) -> None:
+        rows = self.get_main_rows()
+        a = rows[-1].itemAtPosition(0, 10).widget().text()
+        b = rows[-1].itemAtPosition(0, 11).widget().text()
+        for i in range(len(rows) - 1):
+            if a:
+                rows[i].itemAtPosition(0, 10).widget().setText(a)
+            else:
+                rows[i].itemAtPosition(0, 10).widget().setText('')
+            if b:
+                rows[i].itemAtPosition(0, 11).widget().setText(b)
+            else:
+                rows[i].itemAtPosition(0, 11).widget().setText('')
+
+
     def update_floor_number(self) -> None:
         rows = self.get_all_rows()
         for i in range(len(rows)):
@@ -1125,7 +1308,7 @@ class MainWindow(QMainWindow):
             if all([temperature, height]):
                 temperature = float(temperature)
                 height = float(height)
-                result = 0.9 * CONSTANTS.ACCELERATION_OF_GRAVITY * height * ((353 / (273 + 5)) - (353 / (273 + temperature)))
+                result = CONSTANTS.ACCELERATION_OF_GRAVITY * height * ((353 / (273 + 5)) - (353 / (273 + temperature)))
                 result = "{:.3f}".format(round(result, 3))
                 row.itemAtPosition(0, 5).widget().setText(result)
             else:
@@ -1142,7 +1325,7 @@ class MainWindow(QMainWindow):
                 if gravi_pressure:
                     gravi_pressure = float(row.itemAtPosition(0, 5).widget().text())
                     deflector_pressure = float(deflector_pressure)
-                    result = gravi_pressure + deflector_pressure
+                    result = 0.9 * gravi_pressure + deflector_pressure
                     result = "{:.3f}".format(round(result, 3))
                     row.itemAtPosition(0, 7).widget().setText(result)
                 else:
@@ -1150,8 +1333,14 @@ class MainWindow(QMainWindow):
         else:
             rows = self.get_all_rows()
             for row in rows:
-                result = row.itemAtPosition(0, 5).widget().text()
-                row.itemAtPosition(0, 7).widget().setText(result)
+                gravi_pressure = row.itemAtPosition(0, 5).widget().text()
+                if gravi_pressure:
+                    gravi_pressure = float(row.itemAtPosition(0, 5).widget().text())
+                    result = 0.9 * gravi_pressure
+                    result = "{:.3f}".format(round(result, 3))
+                    row.itemAtPosition(0, 7).widget().setText(result)
+                else:
+                    row.itemAtPosition(0, 7).widget().setText('')
 
 
     def set_deflector_pressure_in_table(self, value) -> None:
@@ -1539,6 +1728,21 @@ class MainWindow(QMainWindow):
             row.itemAtPosition(0, 16).widget().setText('')
 
 
+    def calculate_linear_pressure_loss_last_row(self, value) -> None:
+        row = self.sender().parent().layout()
+        l = row.itemAtPosition(0, 4).widget().text()
+        r = row.itemAtPosition(0, 14).widget().text()
+        m = row.itemAtPosition(0, 15).widget().text()
+        if all([l, r, m]):
+            l = float(l)
+            r = float(r)
+            m = float(m)
+            result = "{:.4f}".format(round(l * r * m, 4))
+            row.itemAtPosition(0, 16).widget().setText(result)
+        else:
+            row.itemAtPosition(0, 16).widget().setText('')
+
+
     def calculate_kms_by_radiobutton_1(self, checked) -> None:
         if checked:
             one_side_flow = self.sputnik.itemAtPosition(2, 1).widget().text()
@@ -1594,35 +1798,39 @@ class MainWindow(QMainWindow):
             sputnik_a, sputnik_b = int(sputnik_a), int(sputnik_b)
             rows = self.get_all_rows()
             for i in range(len(rows) - 1, 0, -1):
-                floor_flow = rows[i-1].itemAtPosition(0, 3).widget().text()
+                pass_flow = rows[i-1].itemAtPosition(0, 3).widget().text()
+                branch_flow = rows[i].itemAtPosition(0, 3).widget().text()
                 main_a = rows[i].itemAtPosition(0, 10).widget().text()
                 main_b = rows[i].itemAtPosition(0, 11).widget().text()
                 if not main_b or main_b == '':
                     main_b = main_a
 
-                if all([floor_flow, main_a, main_b]):
+                if all([pass_flow, branch_flow, main_a, main_b]):
+                    main_a, main_b = int(main_a), int(main_b)
+                    pass_flow = float(pass_flow)
+                    branch_flow = float(branch_flow)
+                    Fk = (main_a / 1_000) * (main_b / 1_000)
+                    Fs = (sputnik_a / 1_000) * (sputnik_b / 1_000)
+                    pass_flow_relation = sputnik_flow / pass_flow
+                    branch_flow_relation = sputnik_flow / branch_flow
+
                     try:
-                        floor_flow = float(floor_flow)
-                        main_a, main_b = int(main_a), int(main_b)
-
-                        Fk = (main_a / 1_000) * (main_b / 1_000)
-                        Fs = (sputnik_a / 1_000) * (sputnik_b / 1_000)
-                        flow_relation = sputnik_flow / floor_flow
-
-                        kms_1 = (1.55 * flow_relation - pow(flow_relation, 2))
-                        pass_kms = kms_1 / (pow(1 - flow_relation, 2) * pow(Fk / Fk, 2))
-
-                        if (Fs / Fk <= 0.35) and (flow_relation <= 1):
-                            A = 1
-                        elif sputnik_flow / floor_flow <= 0.4:
-                            A = 0.9 * (1 - sputnik_flow / floor_flow)
-                        else:
-                            A = 0.55
-                        kms_2 = A * (1 + pow(flow_relation * (Fk / Fs), 2) - 2 * pow(1 - flow_relation, 2))
-                        branch_kms = kms_2 / pow(flow_relation * (Fk / Fs), 2)
-
+                        kms_1 = (1.55 * pass_flow_relation - pow(pass_flow_relation, 2))
+                        pass_kms = kms_1 / (pow(1 - pass_flow_relation, 2) * pow(Fk / Fk, 2))
                         pass_kms = "{:.3f}".format(round(pass_kms, 3))
                         rows[i].itemAtPosition(0, 8).widget().setText(pass_kms)
+                    except ZeroDivisionError:
+                        rows[i].itemAtPosition(0, 8).widget().setText('0')
+
+                    try:
+                        if (Fs / Fk <= 0.35) and (branch_flow_relation <= 1):
+                            A = 1
+                        elif branch_flow_relation <= 0.4:
+                            A = 0.9 * (1 - branch_flow_relation)
+                        else:
+                            A = 0.55
+                        kms_2 = A * (1 + pow(branch_flow_relation * (Fk / Fs), 2) - 2 * pow(1 - branch_flow_relation, 2))
+                        branch_kms = kms_2 / pow(branch_flow_relation * (Fk / Fs), 2)
 
                         if i == len(rows) - 1:
                             rows[i].itemAtPosition(0, 9).widget().setText('3.7')
@@ -1630,7 +1838,6 @@ class MainWindow(QMainWindow):
                             branch_kms = "{:.3f}".format(round(branch_kms, 3))
                             rows[i].itemAtPosition(0, 9).widget().setText(str(branch_kms))
                     except ZeroDivisionError:
-                        rows[i].itemAtPosition(0, 8).widget().setText('')
                         rows[i].itemAtPosition(0, 9).widget().setText('')
                 else:
                     rows[i].itemAtPosition(0, 8).widget().setText('')
@@ -1740,10 +1947,14 @@ class MainWindow(QMainWindow):
         elif all([self.radio_button2.isChecked(), klapan_full_pressure_1, klapan_full_pressure_2]):
             klapan_full_pressure = str(max(float(klapan_full_pressure_1), float(klapan_full_pressure_2)))
             self._calculate_full_pressure(klapan_full_pressure)
+        else:
+            rows = self.get_all_rows()
+            for row in rows:
+                row.itemAtPosition(0, 20).widget().setText('')
 
 
     def _calculate_full_pressure(self, klapan_full_pressure) -> None:
-        rows = self.get_all_rows()
+        rows = self.get_main_rows()
         for i in range(len(rows) - 1, -1, -1):
             branch_pressure = rows[i].itemAtPosition(0, 19).widget().text()
             if all([klapan_full_pressure, branch_pressure]):
@@ -1751,27 +1962,149 @@ class MainWindow(QMainWindow):
                 klapan_full_pressure = float(klapan_full_pressure)
 
                 all_pass_pressure = []
-                for line in range(i, len(rows)):
+                for line in range(i, -1, -1):
                     pass_pressure = rows[line].itemAtPosition(0, 18).widget().text()
                     if pass_pressure:
                         all_pass_pressure.append(pass_pressure)
                 sum_pass_pressure = sum(map(float, all_pass_pressure))
 
                 all_linear_pressure = []
-                for line in range(i, len(rows)):
+                for line in range(i, -1, -1):
                     linear_pressure = rows[line].itemAtPosition(0, 16).widget().text()
                     if linear_pressure:
                         all_linear_pressure.append(linear_pressure)
                 sum_linear_pressure = sum(map(float, all_linear_pressure))
 
-                if sum_pass_pressure and sum_linear_pressure:
-                    result = klapan_full_pressure + branch_pressure + sum_pass_pressure + sum_linear_pressure
-                    result = "{:.3f}".format(round(result, 3))
-                    rows[i].itemAtPosition(0, 20).widget().setText(result)
-                else:
-                    rows[i].itemAtPosition(0, 20).widget().setText('')
+                result = klapan_full_pressure + branch_pressure + sum_pass_pressure + sum_linear_pressure
+                result = "{:.3f}".format(round(result, 3))
+                rows[i].itemAtPosition(0, 20).widget().setText(result)
             else:
                 rows[i].itemAtPosition(0, 20).widget().setText('')
+                self.last_row.itemAtPosition(0, 20).widget().setText('')
+
+
+    def calculate_full_pressure_last_row(self, value) -> None:
+        row = self.last_row
+        klapan_full_pressure_1 = self.cell_3_13.text()
+        klapan_full_pressure_2 = self.cell_5_13.text()
+
+        if all([self.radio_button1.isChecked(), klapan_full_pressure_1]):
+            klapan_full_pressure = klapan_full_pressure_1
+        elif all([self.radio_button2.isChecked(), klapan_full_pressure_1, klapan_full_pressure_2]):
+            klapan_full_pressure = str(max(float(klapan_full_pressure_1), float(klapan_full_pressure_2)))
+        else:
+            klapan_full_pressure = False
+
+        linear_pressure = row.itemAtPosition(0, 16).widget().text()
+        pass_pressure = row.itemAtPosition(0, 18).widget().text()
+        branch_pressure = row.itemAtPosition(0, 19).widget().text()
+        if all([linear_pressure, pass_pressure, branch_pressure, klapan_full_pressure]):
+            klapan_full_pressure = float(klapan_full_pressure)
+            linear_pressure = float(linear_pressure)
+            pass_pressure = float(pass_pressure)
+            branch_pressure = float(branch_pressure)
+            result = klapan_full_pressure + branch_pressure + pass_pressure + linear_pressure
+            result = "{:.3f}".format(round(result, 3))
+            row.itemAtPosition(0, 20).widget().setText(result)
+        else:
+            row.itemAtPosition(0, 20).widget().setText('')
+
+
+    def activate_channel_cap(self, state) -> None:
+        if state == 2:
+            self.channel_cap_widget.hide()
+        else:
+            self.channel_cap_widget.setVisible(True)
+
+
+    def change_channel_cap_visibility(self, value) -> None:
+        current_value = self.cap_type.currentText()
+        if current_value == CONSTANTS.CAP.TYPES[1]:
+            for i in (8, 9, 10):
+                self.channel_cap_grid.itemAtPosition(0, i).widget().setVisible(True)
+            for i in (2, 3, 4, 5, 6, 7):
+                self.channel_cap_grid.itemAtPosition(0, i).widget().hide()
+        elif current_value != CONSTANTS.CAP.TYPES[1]:
+            for i in (2, 3, 4, 5, 6, 7, 8, 9, 10):
+                self.channel_cap_grid.itemAtPosition(0, i).widget().setVisible(True)
+        else:
+            for i in (2, 3, 4, 5, 6, 7):
+                self.channel_cap_grid.itemAtPosition(0, i).widget().hide()
+
+
+    def set_channel_cap_tooltip(self, value) -> None:
+        if value == CONSTANTS.CAP.TYPES[2]:
+            path = os.path.join(basedir, CONSTANTS.CAP.TYPES_IMG[0])
+            self.cap_type.setToolTip(f'<img src="{path}" width="250">')
+        elif value == CONSTANTS.CAP.TYPES[3]:
+            path = os.path.join(basedir, CONSTANTS.CAP.TYPES_IMG[1])
+            self.cap_type.setToolTip(f'<img src="{path}" width="250">')
+        else:
+            self.cap_type.setToolTip('')
+
+
+    def set_channel_cap_relations(self, value) -> None:
+        if value in (CONSTANTS.CAP.TYPES[2:]):
+            self.relations.clear()
+            self.relations.addItems(CONSTANTS.CAP.RELATIONS.get(value))
+            self.relations.insertSeparator(2)
+            self.relations.model().item(0).setEnabled(False)
+            self.relations.model().item(1).setEnabled(False)
+
+
+    def calculate_channel_cap(self, value) -> None:
+        current_value = self.cap_type.currentText()
+        if current_value == CONSTANTS.CAP.TYPES[1]:
+            w = self.get_main_rows()[-1].itemAtPosition(0, 12).widget().text()
+            D = self.get_main_rows()[-1].itemAtPosition(0, 13).widget().text()
+            temperature = self.temperature_widget.text()
+            if all([D, w, temperature]):
+                kms = 1
+                D, w, temperature = float(D), float(w), float(temperature)
+                result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
+                result = "{:.3f}".format(round(result, 3))
+                self.pressure.setText(result)
+                self._calculate_channel_cap(result)
+            else:
+                self.pressure.setText('')
+        elif current_value in CONSTANTS.CAP.TYPES[2:]:
+            D = self.get_main_rows()[-1].itemAtPosition(0, 13).widget().text()
+            h = self.input_h.text()
+            if D and h:
+                D, h = float(D), float(h)
+                relation = h / D
+                relation = "{:.2f}".format(round(relation, 2))
+                self.fact_relation.setText(relation)
+            else:
+                self.fact_relation.setText('')
+
+            w = self.get_main_rows()[-1].itemAtPosition(0, 12).widget().text()
+            user_relation = self.relations.currentText()
+            kms_data = CONSTANTS.CAP.RELATIONS.get(current_value)
+            kms = kms_data.get(user_relation, False)
+            temperature = self.temperature_widget.text()
+            if all([D, w, kms, temperature]):
+                w, temperature = float(w), float(temperature)
+                result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
+                result = "{:.3f}".format(round(result, 3))
+                self.pressure.setText(result)
+                self._calculate_channel_cap(result)
+            else:
+                self.pressure.setText('')
+
+
+    def _calculate_channel_cap(self, pressure) -> None:
+        pressure = float(pressure)
+        rows = self.get_all_rows()
+        for row in rows:
+            loss = row.itemAtPosition(0, 20).widget().text()
+            if loss:
+                loss = float(loss)
+                result = loss + pressure
+                result = "{:.3f}".format(round(result, 3))
+                row.itemAtPosition(0, 20).widget().setText(result)
+            else:
+                row.itemAtPosition(0, 20).widget().setText(str(pressure))
 
 
     def get_all_rows(self) -> list:
