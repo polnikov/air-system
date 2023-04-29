@@ -131,13 +131,10 @@ class CONSTANTS:
 
     class BUTTONS:
         TITLE = 'Действия'
+        ADD_DEFLECTOR = 'Добавить дефлектор'
         DELETE_BUTTON_TITLE = 'Удалить\nэтаж'
         ADD_BUTTON_TITLE = 'Добавить\nэтаж'
-        LAST_FLOOR_BUTTON_TITLE = 'Добавить\nпоследний этаж'
-        DELETE_BUTTON_TOOLTIP = 'Удалить текущую строку основного расчёта'
-        ADD_BUTTON_TOOLTIP = 'Добавить строку в конец основного расчёта'
         ADD_FLOOR_FOR_DELETE_TOOLTIP = 'Введите этаж, который нужно удалить'
-        ADD_DEFLECTOR = 'Добавить дефлектор'
 
 
     class CAP:

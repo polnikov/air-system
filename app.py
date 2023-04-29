@@ -446,7 +446,6 @@ class MainWindow(QMainWindow):
                 background: transparent;
             }
         ''')
-        add_row_button.setToolTip(CONSTANTS.BUTTONS.ADD_BUTTON_TOOLTIP)
         _layout.addWidget(add_row_button)
         add_row_button.clicked.connect(self.add_row)
         add_row_button.clicked.connect(self.set_full_air_flow_in_deflector)
@@ -480,7 +479,6 @@ class MainWindow(QMainWindow):
                 background: transparent;
             }
         ''')
-        delete_row_button.setToolTip(CONSTANTS.BUTTONS.DELETE_BUTTON_TOOLTIP)
         _layout.addWidget(delete_row_button)
         delete_row_button.clicked.connect(self.delete_row)
         delete_row_button.clicked.connect(self.set_sputnik_airflow_in_table)
