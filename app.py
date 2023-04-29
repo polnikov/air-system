@@ -324,7 +324,6 @@ class MainWindow(QMainWindow):
 
         label_1 = QLabel(CONSTANTS.CAP.LABEL_1)
         label_1.setStyleSheet('QLabel { color: blue; }')
-        # label_1.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
         label_1.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
         label_1.setFixedWidth(135)
         _layout.addWidget(label_1, 0, 0)
@@ -356,10 +355,10 @@ class MainWindow(QMainWindow):
         input_validator = QRegularExpressionValidator(input_regex)
         input.setValidator(input_validator)
         input.setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
-        # input.setToolTip(CONSTANTS.BUTTONS.ADD_FLOOR_FOR_DELETE_TOOLTIP)
         input.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
         input.setFixedWidth(40)
         input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        input.setToolTip(CONSTANTS.CAP.INPUT_h_TOOLTIP)
         input.hide()
 
         input.textChanged.connect(self.calculate_channel_cap)
@@ -385,7 +384,7 @@ class MainWindow(QMainWindow):
         fact_relation.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
         fact_relation.setFixedWidth(40)
         fact_relation.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        fact_relation.setToolTip('Фактическое соотношение')
+        fact_relation.setToolTip(CONSTANTS.CAP.FACT_RELATION_TOOLTIP)
         fact_relation.hide()
         _layout.addWidget(fact_relation, 0, 6)
 
@@ -394,8 +393,6 @@ class MainWindow(QMainWindow):
         relations.setStyleSheet('QComboBox { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; } QAbstractItemView { background-color: #E5FFCC }')
         relations.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
         relations.setFixedWidth(100)
-        # relation.addItems(CONSTANTS.CAP.RELATIONS.keys())
-        # self.relation_value = CONSTANTS.CAP.TYPES.get(relation.currentText())
         relations.hide()
 
         relations.currentTextChanged.connect(self.calculate_channel_cap)
@@ -411,10 +408,10 @@ class MainWindow(QMainWindow):
         self.pressure = QLabel()
         pressure = self.pressure
         pressure.setStyleSheet('QLabel { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
-        # pressure.setToolTip(CONSTANTS.BUTTONS.ADD_FLOOR_FOR_DELETE_TOOLTIP)
         pressure.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
         pressure.setFixedWidth(50)
         pressure.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pressure.setToolTip(CONSTANTS.CAP.PRESSURE_TOOLTIP)
         pressure.hide()
         _layout.addWidget(pressure, 0, 9)
 
@@ -424,17 +421,9 @@ class MainWindow(QMainWindow):
         label_6.hide()
         _layout.addWidget(label_6, 0, 10)
 
-
-
-
-
-
-
-        # _layout.setSpacing(3)
-        # _widget.setFixedWidth(650)
+        _widget.setMaximumWidth(650)
         _widget.setLayout(_layout)
         return _widget
-
 
 
     def create_buttons_box(self) -> object:

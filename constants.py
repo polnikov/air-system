@@ -50,8 +50,6 @@ class CONSTANTS:
     '''
 
 
-
-
     class INIT_DATA:
         TITLE = 'Исходные данные'
         LINE_HEIGHT = 35
@@ -184,6 +182,9 @@ class CONSTANTS:
                 '1.00: 1.00': 1.00,
             }
         }
+        FACT_RELATION_TOOLTIP = 'Фактическое соотношение'
+        PRESSURE_TOOLTIP = 'Потери давления на оголовке шахты'
+        INPUT_h_TOOLTIP = '0...2 м'
 
     class MAIN_TABLE:
         HEADER_HEIGHT = 75
