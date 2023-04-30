@@ -187,9 +187,9 @@ class CONSTANTS:
         HEADER_HEIGHT = 75
         HEIGHT = 30
         WIDTHS = {
-            0: 40,
+            0: 50,
             1: 70,
-            2: 70,
+            2: 90,
             3: 70,
             4: 60,
             5: 60,
@@ -197,8 +197,6 @@ class CONSTANTS:
             7: 60,
             8: 60,
             9: 60,
-            10: 110,
-            11: 110,
             12: 70,
             13: 70,
             14: 70,
@@ -208,7 +206,6 @@ class CONSTANTS:
             18: 70,
             19: 70,
             20: 70,
-            21: 100,
         }
         TITLE = 'Основной расчёт'
         HEADER_NAME = 'header'

@@ -137,7 +137,6 @@ class MainWindow(QMainWindow):
     def create_tab1_content(self) -> object:
         _widget = QWidget()
         _layout = QVBoxLayout()
-        # _widget.setStyleSheet('background-color: transparent;')
 
         _hbox1 = QHBoxLayout()
         _hbox1.addWidget(self.create_init_data_box())
@@ -150,7 +149,7 @@ class MainWindow(QMainWindow):
         _layout.setAlignment(_hbox2, Qt.AlignmentFlag.AlignTop)
 
         _hbox3 = QVBoxLayout()
-        _hbox3.setContentsMargins(5, 2, 2, 2)
+        _hbox3.setContentsMargins(-1, 0, -1, 0)
         scroll_area = QScrollArea()
         self.scroll_area = scroll_area
         scroll_area.setStyleSheet('background-color: transparent; border: 0')
@@ -273,7 +272,6 @@ class MainWindow(QMainWindow):
         klapan_widget.currentTextChanged.connect(self.set_klapan_air_flow_in_label)
         klapan_widget.currentTextChanged.connect(self.calculate_sputnik_klapan_pressure_loss)
         klapan_widget.currentTextChanged.connect(self.activate_klapan_input)
-        klapan_widget.currentTextChanged.connect(self.calculate_sputnik_result_pressure)
         klapan_layout = QHBoxLayout()
         klapan_layout.addWidget(klapan_label)
         klapan_layout.addWidget(klapan_widget)
@@ -293,7 +291,6 @@ class MainWindow(QMainWindow):
         klapan_input.setValidator(klapan_input_validator)
         klapan_input.setToolTip(CONSTANTS.INIT_DATA.KLAPAN_INPUT_TOOLTIP)
         klapan_input.textChanged.connect(self.calculate_sputnik_klapan_pressure_loss)
-        klapan_input.textChanged.connect(self.calculate_sputnik_result_pressure)
 
         _init_data.addLayout(klapan_layout, 4, 0, 1, 2)
         _init_data.addWidget(self.klapan_air_flow_label, 4, 2)
@@ -544,6 +541,8 @@ class MainWindow(QMainWindow):
         _layout.addWidget(klapan_flow, 1, 1)
 
         klapan_flow.textChanged.connect(self.calculate_sputnik_klapan_pressure_loss)
+        klapan_flow.textChanged.connect(self.calculate_full_pressure)
+        klapan_flow.textChanged.connect(self.calculate_full_pressure_last_row)
 
         for i in (1, 3, 5):
             edit = QLineEdit()
@@ -638,11 +637,13 @@ class MainWindow(QMainWindow):
         self.radio_button2.clicked.connect(self.uncheck_radio_button_1)
         self.radio_button1.clicked.connect(self.uncheck_radio_button_2)
 
+        cell_1_13 = _layout.itemAtPosition(1, 13).widget()
+        cell_1_13.textChanged.connect(self.calculate_sputnik_result_pressure)
+
         cell_2_1 = _layout.itemAtPosition(2, 1).widget()
         cell_2_1.textChanged.connect(self.calculate_sputnik_air_velocity)
         cell_2_1.textChanged.connect(self.set_sputnik_airflow_in_table)
         cell_2_1.textChanged.connect(self.calculate_kms)
-        # cell_2_1.textChanged.connect(self.calculate_sputnik_result_pressure)
 
         cell_4_1 = _layout.itemAtPosition(4, 1).widget()
         cell_4_1.textChanged.connect(self.calculate_sputnik_air_velocity)
@@ -703,10 +704,6 @@ class MainWindow(QMainWindow):
                     label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
                     label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
-                case 10 | 11:
-                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
-                case 21:
-                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
             label.setFixedHeight(CONSTANTS.MAIN_TABLE.HEADER_HEIGHT)
 
             match i:
@@ -717,7 +714,7 @@ class MainWindow(QMainWindow):
 
         _layout.itemAtPosition(0, 6).widget().hide()
 
-        _layout.setSpacing(1)
+        _layout.setSpacing(4)
         _widget.setLayout(_layout)
         return _widget
 
@@ -741,10 +738,6 @@ class MainWindow(QMainWindow):
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
-                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
-                case 10 | 11:
-                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
-                case 21:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
 
             match i:
@@ -772,7 +765,9 @@ class MainWindow(QMainWindow):
                     edit.textChanged.connect(self.calculate_gravi_pressure)
                 case 5 | 6:
                     edit.textChanged.connect(self.calculate_available_pressure)
-                case 7 | 20:
+                case 7:
+                    edit.textChanged.connect(self.calculate_result)
+                case 20:
                     edit.textChanged.connect(self.calculate_result)
                 case 8:
                     edit.textChanged.connect(self.calculate_pass_pressure)
@@ -816,7 +811,7 @@ class MainWindow(QMainWindow):
         _layout.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
         _layout.itemAtPosition(0, 6).widget().hide()
 
-        _layout.setSpacing(1)
+        _layout.setSpacing(4)
         _widget.setLayout(_layout)
         return _widget
 
@@ -840,10 +835,6 @@ class MainWindow(QMainWindow):
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
-                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
-                case 10 | 11:
-                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
-                case 21:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
 
             match i:
@@ -911,7 +902,7 @@ class MainWindow(QMainWindow):
         _layout.itemAtPosition(0, 6).widget().hide()
         _layout.itemAtPosition(0, 9).widget().setText('0')
 
-        _layout.setSpacing(1)
+        _layout.setSpacing(4)
         _widget.setLayout(_layout)
         return _widget
 
@@ -2006,7 +1997,7 @@ class MainWindow(QMainWindow):
         linear_pressure = row.itemAtPosition(0, 16).widget().text()
         pass_pressure = row.itemAtPosition(0, 18).widget().text()
         branch_pressure = row.itemAtPosition(0, 19).widget().text()
-        if all([linear_pressure, pass_pressure, branch_pressure, klapan_full_pressure]):
+        if all([linear_pressure != '', pass_pressure != '', branch_pressure != '', klapan_full_pressure]):
             klapan_full_pressure = float(klapan_full_pressure)
             linear_pressure = float(linear_pressure)
             pass_pressure = float(pass_pressure)
@@ -2154,7 +2145,7 @@ class MainWindow(QMainWindow):
 
     def check_updates(self) -> None:
         current_version = tuple(map(int, version.split(".")))
-        url = 'https://api.github.com/repos/polnikov/recalculation-smoke-exhaust-fan/releases/latest'
+        url = 'https://api.github.com/repos/polnikov/air-system/releases/latest'
         response = requests.get(url)
         data = response.json()
         latest_version = tuple(map(int, data['tag_name'].replace('v', '').split(".")))
@@ -2373,9 +2364,6 @@ class MainWindow(QMainWindow):
             parent_widget.setParent(None)
             parent_widget.deleteLater()
             self.rows_count -= 1
-
-
-
 
 
 
