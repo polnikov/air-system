@@ -11,6 +11,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('app.ico', '.'),
+        ('icons/*.png', 'icons'),
     ],
     hiddenimports=[],
     hookspath=[],
