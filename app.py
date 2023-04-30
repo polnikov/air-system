@@ -700,13 +700,13 @@ class MainWindow(QMainWindow):
                 case 0:
                     label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
-                    label.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
-                    label.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 10 | 11:
-                    label.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 21:
-                    label.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
             label.setFixedHeight(CONSTANTS.MAIN_TABLE.HEADER_HEIGHT)
 
             match i:
@@ -717,7 +717,7 @@ class MainWindow(QMainWindow):
 
         _layout.itemAtPosition(0, 6).widget().hide()
 
-        _layout.setSpacing(3)
+        _layout.setSpacing(1)
         _widget.setLayout(_layout)
         return _widget
 
@@ -739,13 +739,13 @@ class MainWindow(QMainWindow):
                 case 0:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
-                    edit.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
-                    edit.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 10 | 11:
-                    edit.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 21:
-                    edit.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
 
             match i:
                 case 0:
@@ -816,7 +816,7 @@ class MainWindow(QMainWindow):
         _layout.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
         _layout.itemAtPosition(0, 6).widget().hide()
 
-        _layout.setSpacing(3)
+        _layout.setSpacing(1)
         _widget.setLayout(_layout)
         return _widget
 
@@ -842,6 +842,8 @@ class MainWindow(QMainWindow):
                 case 4 | 5 | 6 | 7 | 8 | 9:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 10 | 11:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 21:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
 
             match i:
@@ -909,7 +911,7 @@ class MainWindow(QMainWindow):
         _layout.itemAtPosition(0, 6).widget().hide()
         _layout.itemAtPosition(0, 9).widget().setText('0')
 
-        _layout.setSpacing(3)
+        _layout.setSpacing(1)
         _widget.setLayout(_layout)
         return _widget
 
