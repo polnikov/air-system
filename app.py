@@ -527,7 +527,7 @@ class MainWindow(QMainWindow):
             _layout.addWidget(label, 0, i)
 
         input_edit_style = 'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
-        result_style = 'QLineEdit { background-color: #99FFFF; border: 0; border-radius: 5px; }'
+        result_style = 'QLineEdit { background-color: #99CCFF; border: 0; border-radius: 5px; }'
         read_only_edit_style = 'QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }'
 
         self.klapan_flow = QLineEdit()
@@ -2148,7 +2148,10 @@ class MainWindow(QMainWindow):
         url = 'https://api.github.com/repos/polnikov/air-system/releases/latest'
         response = requests.get(url)
         data = response.json()
-        latest_version = tuple(map(int, data['tag_name'].replace('v', '').split(".")))
+        try:
+            latest_version = tuple(map(int, data['tag_name'].replace('v', '').split(".")))
+        except KeyError:
+            QMessageBox.information(self, 'Проверка обновления', 'Проверка обновлений временно недоступна. Попробуйте, пожалуйста, попозже.')
         download_url = data['assets'][0]['browser_download_url']
 
         if latest_version > current_version:
