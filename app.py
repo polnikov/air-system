@@ -460,6 +460,8 @@ class MainWindow(QMainWindow):
         add_row_button.clicked.connect(self.set_sputnik_airflow_in_table)
         add_row_button.clicked.connect(self.calculate_height)
         add_row_button.clicked.connect(self.change_dimensions_cells_in_table)
+        add_row_button.clicked.connect(self.calculate_kms)
+        add_row_button.clicked.connect(self.copy_table_dimensions)
 
         self.input_for_delete = QLineEdit()
         input = self.input_for_delete
@@ -492,6 +494,7 @@ class MainWindow(QMainWindow):
         delete_row_button.clicked.connect(self.set_sputnik_airflow_in_table)
         delete_row_button.clicked.connect(self.set_full_air_flow_in_deflector)
         delete_row_button.clicked.connect(self.change_dimensions_cells_in_table)
+        delete_row_button.clicked.connect(self.calculate_kms)
 
         _widget.setLayout(_layout)
         return _widget
@@ -900,7 +903,6 @@ class MainWindow(QMainWindow):
 
         _layout.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
         _layout.itemAtPosition(0, 6).widget().hide()
-        _layout.itemAtPosition(0, 9).widget().setText('0')
 
         _layout.setSpacing(4)
         _widget.setLayout(_layout)
@@ -1836,6 +1838,7 @@ class MainWindow(QMainWindow):
                         else:
                             branch_kms = "{:.3f}".format(round(branch_kms, 3))
                             rows[i].itemAtPosition(0, 9).widget().setText(str(branch_kms))
+                        self.last_row.itemAtPosition(0, 9).widget().setText('0')
                     except ZeroDivisionError:
                         rows[i].itemAtPosition(0, 9).widget().setText('')
                 else:
