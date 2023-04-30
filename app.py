@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
-from PySide6.QtCore import QSize, Qt, QRegularExpression, QTimer
+from PySide6.QtCore import QSize, Qt, QRegularExpression, QTimer, QStandardPaths
 from PySide6.QtGui import QRegularExpressionValidator, QFont, QIcon, QRegularExpressionValidator, QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -2227,7 +2227,8 @@ class MainWindow(QMainWindow):
 
     def save_as(self) -> None:
         data = self._get_data_for_save()
-        file_name, _ = QFileDialog.getSaveFileName(self, 'Сохранить расчёт', '', 'JSON (*.json)')
+        save_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+        file_name, _ = QFileDialog.getSaveFileName(self, 'Сохранить расчёт', save_dir, 'JSON (*.json)')
         if file_name:
             self.current_file_path = file_name
             self.setWindowTitle(f'{self.app_title} | {file_name}')
@@ -2254,14 +2255,16 @@ class MainWindow(QMainWindow):
 
     def open(self) -> None:
         options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getOpenFileName(self, "Открыть файл", "", "JSON файл (*.json);;Все файлы (*)", options=options)
+        open_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+        file_name, _ = QFileDialog.getOpenFileName(self, "Выберите файл расчёта", open_dir, "JSON файл (*.json);;Все файлы (*)", options=options)
 
         if file_name:
             try:
                 with open(file_name) as f:
                     data = json.load(f)
 
-                    progress = QProgressDialog("Заполнение данных...", "Cancel", 0, 100, self)
+                    progress = QProgressDialog('Импорт данных', None, 0, 100, self)
+                    progress.setWindowTitle('Заполнение данных...')
                     progress.setWindowModality(Qt.WindowModality.WindowModal)
                     progress.setMinimumDuration(0)
                     progress.setValue(0)
@@ -2346,7 +2349,6 @@ class MainWindow(QMainWindow):
                 progress.close()
 
             except Exception as e:
-                progress.close()
                 QMessageBox.critical(self, "Ошибка", f"Не удалось открыть файл: {e}")
 
 
