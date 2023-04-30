@@ -2,6 +2,7 @@ import os
 import platform
 import math
 import requests
+import json
 import urllib.request
 from urllib.parse import urlparse
 from numpy import array, around
@@ -28,6 +29,7 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QScrollArea,
     QFileDialog,
+    QProgressDialog,
 )
 
 from constants import CONSTANTS
@@ -76,6 +78,7 @@ class MainWindow(QMainWindow):
             }
         '''
         self.rows_count = 0
+        self.current_file_path = None
 
         menubar = self.menuBar()
         file_menu = menubar.addMenu(CONSTANTS.MENU[0])
@@ -86,20 +89,20 @@ class MainWindow(QMainWindow):
 
         help_menu = menubar.addMenu(CONSTANTS.MENU[2])
 
-        # FILE_MENU_HANDLERS = (
-        #     self.open,
-        #     self.save,
-        #     self.save_as,
-        #     self.export,
-        # )
-        # for m in range(4):
-        #     action = QAction(CONSTANTS.FILE_SUBMENU[m], self)
-        #     action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.FILE_MENU_ICONS[m])))
-        #     action.setShortcut(CONSTANTS.FILE_MENU_SHORTCUTS[m])
-        #     file_menu.addAction(action)
-        #     action.triggered.connect(FILE_MENU_HANDLERS[m])
-        #     if m in (0, 2):
-        #         file_menu.addSeparator()
+        FILE_MENU_HANDLERS = (
+            self.open,
+            self.save,
+            self.save_as,
+            # self.export,
+        )
+        for m in range(3):
+            action = QAction(CONSTANTS.FILE_SUBMENU[m], self)
+            action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.FILE_MENU_ICONS[m])))
+            action.setShortcut(CONSTANTS.FILE_MENU_SHORTCUTS[m])
+            file_menu.addAction(action)
+            action.triggered.connect(FILE_MENU_HANDLERS[m])
+            if m in (0, 2):
+                file_menu.addSeparator()
 
         HELP_MENU_HANDLERS = (
             self.show_about,
@@ -2042,8 +2045,8 @@ class MainWindow(QMainWindow):
     def calculate_channel_cap(self, value) -> None:
         current_value = self.cap_type.currentText()
         if current_value == CONSTANTS.CAP.TYPES[1]:
-            w = self.get_main_rows()[-1].itemAtPosition(0, 12).widget().text()
-            D = self.get_main_rows()[-1].itemAtPosition(0, 13).widget().text()
+            w = self.get_main_rows()[0].itemAtPosition(0, 12).widget().text()
+            D = self.get_main_rows()[0].itemAtPosition(0, 13).widget().text()
             temperature = self.temperature_widget.text()
             if all([D, w, temperature]):
                 kms = 1
@@ -2055,7 +2058,7 @@ class MainWindow(QMainWindow):
             else:
                 self.pressure.setText('')
         elif current_value in CONSTANTS.CAP.TYPES[2:]:
-            D = self.get_main_rows()[-1].itemAtPosition(0, 13).widget().text()
+            D = self.get_main_rows()[0].itemAtPosition(0, 13).widget().text()
             h = self.input_h.text()
             if D and h:
                 D, h = float(D), float(h)
@@ -2065,7 +2068,7 @@ class MainWindow(QMainWindow):
             else:
                 self.fact_relation.setText('')
 
-            w = self.get_main_rows()[-1].itemAtPosition(0, 12).widget().text()
+            w = self.get_main_rows()[0].itemAtPosition(0, 12).widget().text()
             user_relation = self.relations.currentText()
             kms_data = CONSTANTS.CAP.RELATIONS.get(current_value)
             kms = kms_data.get(user_relation, False)
@@ -2159,6 +2162,200 @@ class MainWindow(QMainWindow):
         response = urllib.request.urlopen(url)
         data = response.read()
         return data
+
+
+    def _get_data_for_save(self) -> dict:
+        data = {}
+
+        init_data = []
+        temperature = self.temperature_widget.text()
+        surface = self.surface_widget.text()
+        floor_height = self.floor_height_widget.text()
+        channel_height = self.channel_height_widget.text()
+        klapan_1 = self.klapan_input.text()
+        klapan_2 = self.klapan_widget.currentText()
+
+        init_data.append(temperature)
+        init_data.append(surface)
+        init_data.append(floor_height)
+        init_data.append(channel_height)
+        init_data.append(klapan_1)
+        init_data.append(klapan_2)
+        data['init_data'] = init_data
+
+        sputnik_data = []
+        klapan_flow = self.klapan_flow.text()
+        one_side = [self.sputnik.itemAtPosition(2, i).widget().text() for i in (1, 2, 3, 4, 11)]
+        sputnik_data.append(klapan_flow)
+        sputnik_data.append({'one_side': one_side})
+
+        two_side = [self.sputnik.itemAtPosition(4, i).widget().text() for i in (1, 2, 11)]
+        sputnik_data.append({'two_side': two_side})
+
+        if self.radio_button1.isChecked():
+            sputnik_data.append({'is_checked': 1})
+        else:
+            sputnik_data.append({'is_checked': 2})
+        data['sputnik_data'] = sputnik_data
+
+        if self.activate_deflector.isChecked():
+            data['deflector'] = self.deflector.itemAtPosition(0, 1).widget().text()
+        else:
+            cap = self.cap_type.currentText()
+            if cap == CONSTANTS.CAP.TYPES[1]:
+                data['cap_0'] = cap
+            else:
+                h = self.channel_cap_grid.itemAtPosition(0, 2).widget().text()
+                relation = self.relations.currentText()
+                data['cap_1'] = [cap, h, relation]
+
+        last_row = [self.last_row.itemAtPosition(0, i).widget().text() for i in (1, 2, 8, 10, 11)]
+        data['last_row'] = last_row
+
+        rows = []
+        for row in self.get_main_rows():
+            row_data = [row.itemAtPosition(0, i).widget().text() for i in (1, 2, 10, 11)]
+            rows.append(row_data)
+        data['rows'] = rows
+
+        return data
+
+
+    def save_as(self) -> None:
+        data = self._get_data_for_save()
+        file_name, _ = QFileDialog.getSaveFileName(self, 'Сохранить расчёт', '', 'JSON (*.json)')
+        if file_name:
+            self.current_file_path = file_name
+            self.setWindowTitle(f'{self.app_title} | {file_name}')
+
+            with open(file_name, 'w') as file:
+                json.dump(data, file)
+
+
+    def save(self) -> None:
+        if self.current_file_path is None:
+            self.save_as()
+        else:
+            data = self._get_data_for_save()
+            with open(self.current_file_path, 'w') as file:
+                json.dump(data, file)
+
+
+    def auto_save(self) -> None:
+        if self.current_file_path:
+            self.save()
+        else:
+            self.save_as()
+
+
+    def open(self) -> None:
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Открыть файл", "", "JSON файл (*.json);;Все файлы (*)", options=options)
+
+        if file_name:
+            try:
+                with open(file_name) as f:
+                    data = json.load(f)
+
+                    progress = QProgressDialog("Заполнение данных...", "Cancel", 0, 100, self)
+                    progress.setWindowModality(Qt.WindowModality.WindowModal)
+                    progress.setMinimumDuration(0)
+                    progress.setValue(0)
+                    progress.setMaximum(100)
+                    progress.show()
+
+                    # prepare main table
+                    num_rows = len(data['rows'])
+                    self._remove_all_main_rows()
+                    for i in range(num_rows):
+                        self.main_box.insertWidget(2, self.create_row())
+                    self.last_row.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
+                    self.change_dimensions_cells_in_table()
+
+                    progress.setValue(progress.value() + 20)
+
+                    # init data
+                    init_data = data['init_data']
+                    self.temperature_widget.setText(init_data[0])
+                    self.surface_widget.setText(init_data[1])
+                    self.floor_height_widget.setText(init_data[2])
+                    self.channel_height_widget.setText(init_data[3])
+                    self.klapan_input.setText(init_data[4])
+                    self.klapan_widget.setCurrentText(init_data[5])
+
+                    progress.setValue(progress.value() + 10)
+
+                    # sputnik data
+                    self.klapan_flow.setText(data['sputnik_data'][0])
+                    one_side = data['sputnik_data'][1]['one_side']
+                    for i, j in enumerate((1, 2, 3, 4, 11)):
+                        self.sputnik.itemAtPosition(2, j).widget().setText(one_side[i])
+
+                    progress.setValue(progress.value() + 10)
+
+                    two_side = data['sputnik_data'][2]['two_side']
+                    for i, j in enumerate((1, 2, 11)):
+                        self.sputnik.itemAtPosition(4, j).widget().setText(two_side[i])
+
+                    progress.setValue(progress.value() + 10)
+
+                    if data['sputnik_data'][3]['is_checked'] == 1:
+                        self.radio_button1.setChecked(True)
+                    else:
+                        self.radio_button2.setChecked(True)
+
+                    progress.setValue(progress.value() + 10)
+
+                    # deflector data
+                    if data.get('deflector', False):
+                        self.deflector.itemAtPosition(0, 1).widget().setText(data['deflector'])
+                        self.activate_deflector.setChecked(True)
+                    # сap data
+                    else:
+                        if data.get('cap_0', False):
+                            self.cap_type.setCurrentText(CONSTANTS.CAP.TYPES[1])
+                        else:
+                            self.cap_type.setCurrentText(data['cap_1'][0])
+                            self.channel_cap_grid.itemAtPosition(0, 2).widget().setText(data['cap_1'][1])
+                            self.relations.setCurrentText(data['cap_1'][2])
+
+                    progress.setValue(progress.value() + 10)
+
+                    # last row data
+                    last_row = data['last_row']
+                    for i, j in enumerate((1, 2, 8, 10, 11)):
+                        self.last_row.itemAtPosition(0, j).widget().setText(last_row[i])
+
+                    progress.setValue(progress.value() + 10)
+
+                    # table data
+                    rows_data = data['rows']
+                    rows = self.get_main_rows()
+                    for i in range(num_rows):
+                        for j, k in enumerate((1, 2, 10, 11)):
+                            rows[i].itemAtPosition(0, k).widget().setText(rows_data[i][j])
+
+                    progress.setValue(progress.value() + 20)
+
+                self.current_file_path = file_name
+                self.setWindowTitle(f'{self.app_title} | {file_name}')
+                progress.close()
+
+            except Exception as e:
+                progress.close()
+                QMessageBox.critical(self, "Ошибка", f"Не удалось открыть файл: {e}")
+
+
+    def _remove_all_main_rows(self) -> None:
+        rows = self.get_main_rows()
+        for row in rows:
+            parent_widget = row.parent()
+            parent_widget.setParent(None)
+            parent_widget.deleteLater()
+            self.rows_count -= 1
+
+
+
 
 
 
