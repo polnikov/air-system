@@ -84,6 +84,8 @@ class MainWindow(QMainWindow):
         self.auto_save_timer.timeout.connect(self.auto_save)
         self.auto_save_timer.start(300_000) # 5 minutes in milliseconds
 
+
+
         menubar = self.menuBar()
         file_menu = menubar.addMenu(CONSTANTS.MENU[0])
 
@@ -128,6 +130,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.tab_widget)
         self.tab_widget.addTab(self.create_tab1_content(), CONSTANTS.TAB1_TITLE)
         self.tab_widget.addTab(self.create_tab2_content(), CONSTANTS.TAB2_TITLE)
+
+        self.showMaximized()
 
 
     def create_tab1_content(self) -> object:
@@ -500,6 +504,8 @@ class MainWindow(QMainWindow):
         _box = QGroupBox(CONSTANTS.SPUTNIK_TABLE.TITLE)
         _box.setStyleSheet(self.box_style)
         _box.setFixedHeight(298)
+        _box.setMinimumWidth(1200)
+        _box.setMaximumWidth(1500)
         _layout = QGridLayout()
         _layout.setObjectName(CONSTANTS.SPUTNIK_TABLE.NAME)
         self.sputnik = _layout
@@ -511,13 +517,15 @@ class MainWindow(QMainWindow):
             label.setStyleSheet('QLabel { background-color: #E0E0E0; border-radius: 5px; }')
             match i:
                 case 0:
-                    label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
+                    label.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
                 case 1:
-                    label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
+                    label.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
                 case 3 | 4:
-                    label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
+                    label.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
+                case 14:
+                    label.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i))
                 case _:
-                    label.setFixedWidth(72)
+                    label.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get('other'))
             label.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEADER_HEIGHT)
             _layout.addWidget(label, 0, i)
 
@@ -529,7 +537,7 @@ class MainWindow(QMainWindow):
         klapan_flow = self.klapan_flow
         klapan_flow.setAlignment(Qt.AlignmentFlag.AlignCenter)
         klapan_flow.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
-        klapan_flow.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(1))
+        klapan_flow.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(1))
         klapan_flow.setToolTip(CONSTANTS.SPUTNIK_TABLE.KLAPAN_FLOW_TOOLTIP)
         klapan_flow.setStyleSheet(input_edit_style)
         klapan_flow.setObjectName('klapan_flow')
@@ -541,7 +549,7 @@ class MainWindow(QMainWindow):
             edit = QLineEdit()
             edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
             edit.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
-            edit.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get('other'))
+            edit.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get('other'))
             edit.setReadOnly(True)
             edit.setStyleSheet(result_style)
             _layout.addWidget(edit, i, 13)
@@ -549,7 +557,7 @@ class MainWindow(QMainWindow):
         klapan = QLabel(CONSTANTS.SPUTNIK_TABLE.KLAPAN_LABEL)
         klapan.setAlignment(Qt.AlignmentFlag.AlignCenter)
         klapan.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
-        klapan.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
+        klapan.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
         klapan.setStyleSheet('QLabel { background-color: #E0E0E0; font-size: 11px; border-radius: 5px; }')
         _layout.addWidget(klapan, 1, 0)
 
@@ -557,7 +565,7 @@ class MainWindow(QMainWindow):
             label = QLabel(CONSTANTS.SPUTNIK_TABLE.SECTORS.get(i))
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setStyleSheet('QLabel { background-color: #E0E0E0; border-radius: 5px;}')
-            label.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
+            label.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(0))
             label.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
             _layout.addWidget(label, i, 0)
 
@@ -565,7 +573,7 @@ class MainWindow(QMainWindow):
             for i in range(1, 14):
                 edit = QLineEdit()
                 edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                edit.setFixedWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i, 72))
+                edit.setMinimumWidth(CONSTANTS.SPUTNIK_TABLE.WIDTHS.get(i, 72))
                 edit.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
                 if i in (1, 2, 3, 4, 11):
                     edit.setStyleSheet(input_edit_style)
@@ -692,11 +700,13 @@ class MainWindow(QMainWindow):
                 case 0:
                     label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
-                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    label.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
-                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    label.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 10 | 11:
-                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    label.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 21:
+                    label.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
             label.setFixedHeight(CONSTANTS.MAIN_TABLE.HEADER_HEIGHT)
 
             match i:
@@ -729,11 +739,13 @@ class MainWindow(QMainWindow):
                 case 0:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
-                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    edit.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
-                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    edit.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 10 | 11:
-                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                    edit.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 21:
+                    edit.setMinimumWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
 
             match i:
                 case 0:
@@ -2369,7 +2381,6 @@ class MainWindow(QMainWindow):
 
 
 
-
 if __name__ == '__main__':
     import sys
     app = QApplication(sys.argv)
@@ -2379,6 +2390,5 @@ if __name__ == '__main__':
     window = MainWindow()
     window.setWindowIcon(QIcon(os.path.join(basedir, 'app.ico')))
     window.setIconSize(QSize(15, 15))
-    window.resize(2520, 1680)
     window.show()
     sys.exit(app.exec())

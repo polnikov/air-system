@@ -208,6 +208,7 @@ class CONSTANTS:
             18: 70,
             19: 70,
             20: 70,
+            21: 100,
         }
         TITLE = 'Основной расчёт'
         HEADER_NAME = 'header'
@@ -251,6 +252,7 @@ class CONSTANTS:
             1: 70,
             3: 90,
             4: 90,
+            14: 70,
             'other': 72,
         }
         TITLE = 'Расчёт спутника'
