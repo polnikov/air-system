@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
-from PySide6.QtCore import QSize, Qt, QRegularExpression
+from PySide6.QtCore import QSize, Qt, QRegularExpression, QTimer
 from PySide6.QtGui import QRegularExpressionValidator, QFont, QIcon, QRegularExpressionValidator, QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -79,6 +79,10 @@ class MainWindow(QMainWindow):
         '''
         self.rows_count = 0
         self.current_file_path = None
+
+        self.auto_save_timer = QTimer()
+        self.auto_save_timer.timeout.connect(self.auto_save)
+        self.auto_save_timer.start(300_000) # 5 minutes in milliseconds
 
         menubar = self.menuBar()
         file_menu = menubar.addMenu(CONSTANTS.MENU[0])
