@@ -2302,6 +2302,8 @@ class MainWindow(QMainWindow):
                     # prepare main table
                     num_rows = len(data['rows'])
                     self._remove_all_main_rows()
+
+                    self.main_box.addWidget(self.create_last_row())
                     for i in range(num_rows):
                         self.main_box.insertWidget(2, self.create_row())
                     self.last_row.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
@@ -2345,8 +2347,10 @@ class MainWindow(QMainWindow):
                     if data.get('deflector', False):
                         self.deflector.itemAtPosition(0, 1).widget().setText(data['deflector'])
                         self.activate_deflector.setChecked(True)
+                        self.show_deflector_in_table(state=2)
                     # сap data
                     else:
+                        self.activate_deflector.setChecked(False)
                         if data.get('cap_0', False):
                             self.cap_type.setCurrentText(CONSTANTS.CAP.TYPES[1])
                         else:
@@ -2429,6 +2433,10 @@ class MainWindow(QMainWindow):
 
 
     def _remove_all_main_rows(self) -> None:
+        last_row = self.last_row
+        parent_widget = last_row.parent()
+        parent_widget.setParent(None)
+        parent_widget.deleteLater()
         rows = self.get_main_rows()
         for row in rows:
             parent_widget = row.parent()
