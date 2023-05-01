@@ -1370,13 +1370,16 @@ class MainWindow(QMainWindow):
             available_pressure = float(available_pressure)
             full_pressure = float(full_pressure)
             if available_pressure > full_pressure:
-                result = '✅'
+                result = 'Тяга есть'
                 row.itemAtPosition(0, 21).widget().setText(result)
+                row.itemAtPosition(0, 21).widget().setStyleSheet('QLineEdit { background-color: #66CC00; border: 0; border-radius: 5px; }')
             else:
-                result = '❌'
+                result = 'Тяги нет'
                 row.itemAtPosition(0, 21).widget().setText(result)
+                row.itemAtPosition(0, 21).widget().setStyleSheet('QLineEdit { background-color: #FF3333; border: 0; border-radius: 5px; }')
         else:
             row.itemAtPosition(0, 21).widget().setText('')
+            row.itemAtPosition(0, 21).widget().setStyleSheet('QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
 
 
     def activate_klapan_input(self, value) -> None:
