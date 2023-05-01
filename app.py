@@ -101,9 +101,9 @@ class MainWindow(QMainWindow):
             self.open,
             self.save,
             self.save_as,
-            # self.export,
+            self.export,
         )
-        for m in range(3):
+        for m in range(4):
             action = QAction(CONSTANTS.FILE_SUBMENU[m], self)
             action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.FILE_MENU_ICONS[m])))
             action.setShortcut(CONSTANTS.FILE_MENU_SHORTCUTS[m])
@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
 
         self.recent_files_menu = QMenu('Открыть недавние', self)
         self.recent_files_menu.setIcon(QIcon(os.path.join(basedir, CONSTANTS.RECENT_FILES_ICONS[-1])))
-        file_menu.addMenu(self.recent_files_menu)
+        file_menu.insertMenu(file_menu.actions()[1], self.recent_files_menu)
         self.recent_files = deque(maxlen=5)
         self.settings = QSettings("akudja.technology", "natural-air-system")
         self.load_recent_files()
@@ -2149,20 +2149,45 @@ class MainWindow(QMainWindow):
         return rows
 
 
-    def get_sum_main_rows_str(self) -> str:
-        return str(len(self.get_main_rows()))
-
-
-    def get_sum_main_rows_int(self) -> int:
-        return len(self.get_main_rows())
-
-
     def get_sum_all_rows_int(self) -> int:
         return len(self.get_all_rows())
 
 
     def get_sum_all_rows_str(self) -> int:
         return str(len(self.get_all_rows()))
+
+
+    def _remove_all_main_rows(self) -> None:
+        last_row = self.last_row
+        parent_widget = last_row.parent()
+        parent_widget.setParent(None)
+        parent_widget.deleteLater()
+        rows = self.get_main_rows()
+        for row in rows:
+            parent_widget = row.parent()
+            parent_widget.setParent(None)
+            parent_widget.deleteLater()
+            self.rows_count -= 1
+
+
+    def clean_all_input_data(self) -> None:
+        init_data = self.init_data_layout
+        for i in (0, 1, 2, 3, 5):
+            init_data.itemAtPosition(i, 1).widget().setText('')
+        self.klapan_widget.setCurrentIndex(-1)
+
+        sputnik_data = self.sputnik
+        self.klapan_flow.setText('')
+        for i in (1, 2, 3, 4, 11):
+            sputnik_data.itemAtPosition(2, i).widget().setText('')
+        for i in (1, 2, 11):
+            sputnik_data.itemAtPosition(4, i).widget().setText('')
+        self.radio_button1.setChecked(True)
+
+        self.activate_deflector.setChecked(False)
+        deflector = self.deflector
+        for i in range(9):
+            deflector.itemAtPosition(i, 1).widget().setText('')
 
 
     def open_manual(self):
@@ -2264,6 +2289,81 @@ class MainWindow(QMainWindow):
         data['rows'] = rows
 
         return data
+
+
+    def _get_data_for_export(self) -> dict:
+        data = {}
+
+        init_data = []
+        init_layout = self.init_data_layout
+        for i in range(4):
+            init_data.append([init_layout.itemAtPosition(i, j).widget().text() for j in range(2)])
+        if not self.klapan_input.text():
+            init_data.append(
+                [
+                    CONSTANTS.INIT_DATA.KLAPAN_LABEL,
+                    self.klapan_widget.currentText(),
+                    self.klapan_widget_value.text(),
+                ],
+            )
+        else:
+            init_data.append(
+                [CONSTANTS.INIT_DATA.KLAPAN_INPUT_LABEL_1, self.klapan_input.text()],
+            )
+        data['init_data'] = init_data
+
+        sputnik_data = []
+        sputnik_layout = self.sputnik
+        sputnik_data.append(dict(headers=[sputnik_layout.itemAtPosition(0, i).widget().text() for i in range(13)]))
+        if self.radio_button1.isChecked():
+            sputnik_data.append(dict(line_1=[sputnik_layout.itemAtPosition(1, i).widget().text() for i in (0, 1, 13)]))
+            sputnik_data.append(dict(line_2=[sputnik_layout.itemAtPosition(2, i).widget().text() for i in range(13)]))
+            sputnik_data.append(dict(line_3=sputnik_layout.itemAtPosition(3, 13).widget().text()))
+        else:
+            sputnik_data.append(dict(line_1=[sputnik_layout.itemAtPosition(1, i).widget().text() for i in (0, 1, 13)]))
+            sputnik_data.append(dict(line_2=[sputnik_layout.itemAtPosition(2, i).widget().text() for i in range(13)]))
+            sputnik_data.append(dict(line_3=sputnik_layout.itemAtPosition(3, 13).widget().text()))
+            sputnik_data.append(dict(line_4=[sputnik_layout.itemAtPosition(4, i).widget().text() for i in range(13)]))
+            sputnik_data.append(dict(line_5=sputnik_layout.itemAtPosition(5, 13).widget().text()))
+        data['sputnik_data'] = sputnik_data
+
+        main_data = []
+        rows = self.get_all_rows()
+        main_data.append(dict(nom_rows=self.get_sum_all_rows_int()))
+        if not self.activate_deflector.isChecked():
+            main_data.append(dict(nom_cols=21))
+            main_data.append(dict(headers=[self.header.itemAtPosition(0, i).widget().text() for i in range(22) if i != 6]))
+            for i in range(len(rows)):
+                main_data.append({f'line_{i}': [rows[i].itemAtPosition(0, j).widget().text() for j in range(22) if j != 6]})
+            data['main_data'] = main_data
+
+            cap_data = []
+            cap = self.cap_type.currentText()
+            if cap == CONSTANTS.CAP.TYPES[1]:
+                cap_data.append({'cap_0': [cap, self.cap_pressure.text()]})
+                data['cap_data'] = cap_data
+            else:
+                h = self.channel_cap_grid.itemAtPosition(0, 2).widget().text()
+                kms = CONSTANTS.CAP.RELATIONS.get(cap).get(self.relations.currentText())
+                cap_data.append({'cap_1': [cap, h, kms, self.cap_pressure.text()]})
+                data['cap_data'] = cap_data
+        else:
+            main_data.append(dict(nom_cols=22))
+            main_data.append(dict(headers=[self.header.itemAtPosition(0, i).widget().text() for i in range(22)]))
+            for i in range(len(rows)):
+                main_data.append({f'line_{i}': [rows[i].itemAtPosition(0, j).widget().text() for j in range(22)]})
+            data['main_data'] = main_data
+
+            deflector_data = []
+            for i in range(9):
+                deflector_data.append([self.deflector.itemAtPosition(i, j).widget().text() for j in range(2)])
+            data['deflector_data'] = deflector_data
+
+        return data
+
+
+    def export(self) -> None:
+        self._get_data_for_export()
 
 
     def save_as(self) -> None:
@@ -2399,10 +2499,16 @@ class MainWindow(QMainWindow):
                 self.setWindowTitle(f'{self.app_title} | {file_name}')
                 progress.close()
                 self.add_recent_file(file_name)
+            except FileNotFoundError:
+                QMessageBox.critical(self, 'Ошибка', 'Такого файла не существует или он был перемещен')
+                self.recent_files.remove(file_name)
+                self.settings.setValue("recentFiles", list(self.recent_files))
+                self.update_recent_files_menu()
             except Exception as e:
-                QMessageBox.critical(self, 'Ошибка', f'Не удалось открыть файл: {e}')
+                QMessageBox.critical(self, 'Ошибка', f'Не удалось открыть файл:\n{e}')
         else:
-            QMessageBox.critical(self, 'Ошибка', 'Такого файла не существует или он был перемещен')
+            QMessageBox.critical(self, 'Ошибка', 'Что то пошло не так...')
+
 
     def open_recent_file(self, file_path) -> None:
         self._open_file(file_path)
@@ -2447,40 +2553,33 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         self.settings.setValue("recentFiles", list(self.recent_files))
+
+        if self.current_file_path is None:
+            reply = QMessageBox.question(
+                self,
+                'Подтверждение',
+                '''<html><center>Вы уверены, что хотите закрыть программу?<br><font color="red">Не сохраненный расчет будет потерян.</font></center></html>
+                ''',
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+
+            if reply == QMessageBox.No:
+                self.save()
+                event.accept()
+                event.ignore()
+            else:
+                event.accept()
+        else:
+            reply = QMessageBox.question(self, 'Подтверждение', 'Сохранить текущие изменения?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+            if reply == QMessageBox.No:
+                event.accept()
+            else:
+                self.save
+                event.accept()
         super().closeEvent(event)
 
 
-    def _remove_all_main_rows(self) -> None:
-        last_row = self.last_row
-        parent_widget = last_row.parent()
-        parent_widget.setParent(None)
-        parent_widget.deleteLater()
-        rows = self.get_main_rows()
-        for row in rows:
-            parent_widget = row.parent()
-            parent_widget.setParent(None)
-            parent_widget.deleteLater()
-            self.rows_count -= 1
-
-
-    def clean_all_input_data(self) -> None:
-        init_data = self.init_data_layout
-        for i in (0, 1, 2, 3, 5):
-            init_data.itemAtPosition(i, 1).widget().setText('')
-        self.klapan_widget.setCurrentIndex(-1)
-
-        sputnik_data = self.sputnik
-        self.klapan_flow.setText('')
-        for i in (1, 2, 3, 4, 11):
-            sputnik_data.itemAtPosition(2, i).widget().setText('')
-        for i in (1, 2, 11):
-            sputnik_data.itemAtPosition(4, i).widget().setText('')
-        self.radio_button1.setChecked(True)
-
-        self.activate_deflector.setChecked(False)
-        deflector = self.deflector
-        for i in range(9):
-            deflector.itemAtPosition(i, 1).widget().setText('')
 
 
 
