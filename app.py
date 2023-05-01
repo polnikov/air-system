@@ -4,6 +4,7 @@ import math
 import requests
 import json
 import urllib.request
+from functools import partial
 from urllib.parse import urlparse
 from collections import deque
 from numpy import array, around
@@ -354,6 +355,8 @@ class MainWindow(QMainWindow):
         cap_type.currentTextChanged.connect(self.set_channel_cap_tooltip)
         cap_type.currentTextChanged.connect(self.set_channel_cap_relations)
         cap_type.currentTextChanged.connect(self.calculate_channel_cap)
+        cap_type.currentTextChanged.connect(self.calculate_full_pressure)
+        cap_type.currentTextChanged.connect(self.calculate_full_pressure_last_row)
         _layout.addWidget(cap_type, 0, 1)
 
         label_2 = QLabel('h')
@@ -419,8 +422,8 @@ class MainWindow(QMainWindow):
         label_5.hide()
         _layout.addWidget(label_5, 0, 8)
 
-        self.pressure = QLabel()
-        pressure = self.pressure
+        self.cap_pressure = QLabel()
+        pressure = self.cap_pressure
         pressure.setStyleSheet('QLabel { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
         pressure.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
         pressure.setFixedWidth(50)
@@ -858,6 +861,7 @@ class MainWindow(QMainWindow):
                 case 1 | 2 | 8 | 10 | 11:
                     edit.setStyleSheet(input_edit_style)
                 case 6:
+                    edit.setReadOnly(True)
                     edit.setStyleSheet('QLineEdit { background-color: #CCCCFF; border-radius: 5px; }')
                 case _:
                     edit.setReadOnly(True)
@@ -1991,7 +1995,12 @@ class MainWindow(QMainWindow):
                         all_linear_pressure.append(linear_pressure)
                 sum_linear_pressure = sum(map(float, all_linear_pressure))
 
-                result = klapan_full_pressure + branch_pressure + sum_pass_pressure + sum_linear_pressure
+                if not self.activate_deflector.isChecked() and self.cap_pressure.text():
+                    cap_pressure = float(self.cap_pressure.text())
+                else:
+                    cap_pressure = 0
+
+                result = klapan_full_pressure + branch_pressure + sum_pass_pressure + sum_linear_pressure + cap_pressure
                 result = "{:.3f}".format(round(result, 3))
                 rows[i].itemAtPosition(0, 20).widget().setText(result)
             else:
@@ -2019,7 +2028,12 @@ class MainWindow(QMainWindow):
             linear_pressure = float(linear_pressure)
             pass_pressure = float(pass_pressure)
             branch_pressure = float(branch_pressure)
-            result = klapan_full_pressure + branch_pressure + pass_pressure + linear_pressure
+
+            if not self.activate_deflector.isChecked() and self.cap_pressure.text():
+                cap_pressure = float(self.cap_pressure.text())
+            else:
+                cap_pressure = 0
+            result = klapan_full_pressure + branch_pressure + pass_pressure + linear_pressure + cap_pressure
             result = "{:.3f}".format(round(result, 3))
             row.itemAtPosition(0, 20).widget().setText(result)
         else:
@@ -2079,10 +2093,10 @@ class MainWindow(QMainWindow):
                 D, w, temperature = float(D), float(w), float(temperature)
                 result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
                 result = "{:.3f}".format(round(result, 3))
-                self.pressure.setText(result)
+                self.cap_pressure.setText(result)
                 self._calculate_channel_cap(result)
             else:
-                self.pressure.setText('')
+                self.cap_pressure.setText('')
         elif current_value in CONSTANTS.CAP.TYPES[2:]:
             D = self.get_main_rows()[0].itemAtPosition(0, 13).widget().text()
             h = self.input_h.text()
@@ -2103,10 +2117,10 @@ class MainWindow(QMainWindow):
                 w, temperature = float(w), float(temperature)
                 result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
                 result = "{:.3f}".format(round(result, 3))
-                self.pressure.setText(result)
+                self.cap_pressure.setText(result)
                 self._calculate_channel_cap(result)
             else:
-                self.pressure.setText('')
+                self.cap_pressure.setText('')
 
 
     def _calculate_channel_cap(self, pressure) -> None:
@@ -2228,7 +2242,9 @@ class MainWindow(QMainWindow):
         data['sputnik_data'] = sputnik_data
 
         if self.activate_deflector.isChecked():
-            data['deflector'] = self.deflector.itemAtPosition(0, 1).widget().text()
+            wind = self.deflector.itemAtPosition(0, 1).widget().text()
+            flow = self.deflector.itemAtPosition(2, 1).widget().text()
+            data['deflector'] = [wind, flow]
         else:
             cap = self.cap_type.currentText()
             if cap == CONSTANTS.CAP.TYPES[1]:
@@ -2302,6 +2318,7 @@ class MainWindow(QMainWindow):
                     # prepare main table
                     num_rows = len(data['rows'])
                     self._remove_all_main_rows()
+                    self.clean_all_input_data()
 
                     self.main_box.addWidget(self.create_last_row())
                     for i in range(num_rows):
@@ -2343,9 +2360,27 @@ class MainWindow(QMainWindow):
 
                     progress.setValue(progress.value() + 10)
 
+                    # last row data
+                    last_row = data['last_row']
+                    for i, j in enumerate((1, 2, 8, 10, 11)):
+                        self.last_row.itemAtPosition(0, j).widget().setText(last_row[i])
+                    self.calculate_full_pressure_last_row
+
+                    progress.setValue(progress.value() + 10)
+
+                    # table data
+                    rows_data = data['rows']
+                    rows = self.get_main_rows()
+                    for i in range(num_rows):
+                        for j, k in enumerate((1, 2, 10, 11)):
+                            rows[i].itemAtPosition(0, k).widget().setText(rows_data[i][j])
+
+                    progress.setValue(progress.value() + 20)
+
                     # deflector data
                     if data.get('deflector', False):
-                        self.deflector.itemAtPosition(0, 1).widget().setText(data['deflector'])
+                        self.deflector.itemAtPosition(0, 1).widget().setText(data['deflector'][0])
+                        self.deflector.itemAtPosition(2, 1).widget().setText(data['deflector'][1])
                         self.activate_deflector.setChecked(True)
                         self.show_deflector_in_table(state=2)
                     # сap data
@@ -2360,57 +2395,41 @@ class MainWindow(QMainWindow):
 
                     progress.setValue(progress.value() + 10)
 
-                    # last row data
-                    last_row = data['last_row']
-                    for i, j in enumerate((1, 2, 8, 10, 11)):
-                        self.last_row.itemAtPosition(0, j).widget().setText(last_row[i])
-
-                    progress.setValue(progress.value() + 10)
-
-                    # table data
-                    rows_data = data['rows']
-                    rows = self.get_main_rows()
-                    for i in range(num_rows):
-                        for j, k in enumerate((1, 2, 10, 11)):
-                            rows[i].itemAtPosition(0, k).widget().setText(rows_data[i][j])
-
-                    progress.setValue(progress.value() + 20)
-
                 self.current_file_path = file_name
                 self.setWindowTitle(f'{self.app_title} | {file_name}')
                 progress.close()
                 self.add_recent_file(file_name)
-
             except Exception as e:
-                QMessageBox.critical(self, "Ошибка", f"Не удалось открыть файл: {e}")
+                QMessageBox.critical(self, 'Ошибка', f'Не удалось открыть файл: {e}')
+        else:
+            QMessageBox.critical(self, 'Ошибка', 'Такого файла не существует или он был перемещен')
 
-
-    def open_recent_file(self, file_path):
+    def open_recent_file(self, file_path) -> None:
         self._open_file(file_path)
 
 
-    def add_recent_file(self, file_path):
-        if file_path not in self.recent_files:
-            self.recent_files.appendleft(file_path)
-        else:
+    def add_recent_file(self, file_path) -> None:
+        if file_path in self.recent_files:
             self.recent_files.remove(file_path)
-            self.recent_files.appendleft(file_path)
+        self.recent_files.append(file_path)
         self.settings.setValue("recentFiles", list(self.recent_files))
         self.update_recent_files_menu()
 
 
-    def load_recent_files(self):
+    def load_recent_files(self) -> None:
         recent_files = self.settings.value("recentFiles", [])
         if recent_files:
             self.recent_files.extend(recent_files)
 
 
-    def update_recent_files_menu(self):
+    def update_recent_files_menu(self) -> None:
         self.recent_files_menu.clear()
-        for i, file_path in enumerate(self.recent_files):
+        recent_files = self.settings.value("recentFiles", [])
+        # print(recent_files)
+        for i, file_path in enumerate(recent_files):
             action = QAction(file_path, self)
             action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.RECENT_FILES_ICONS[i])))
-            action.triggered.connect(lambda: self.open_recent_file(file_path))
+            action.triggered.connect(partial(self.open_recent_file, file_path))
             self.recent_files_menu.addAction(action)
 
         self.recent_files_menu.addSeparator()
@@ -2421,13 +2440,13 @@ class MainWindow(QMainWindow):
         self.recent_files_menu.addAction(clear_action)
 
 
-    def clear_recent_files(self):
+    def clear_recent_files(self) -> None:
         self.recent_files.clear()
         self.settings.remove("recentFiles")
         self.update_recent_files_menu()
 
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         self.settings.setValue("recentFiles", list(self.recent_files))
         super().closeEvent(event)
 
@@ -2443,6 +2462,26 @@ class MainWindow(QMainWindow):
             parent_widget.setParent(None)
             parent_widget.deleteLater()
             self.rows_count -= 1
+
+
+    def clean_all_input_data(self) -> None:
+        init_data = self.init_data_layout
+        for i in (0, 1, 2, 3, 5):
+            init_data.itemAtPosition(i, 1).widget().setText('')
+        self.klapan_widget.setCurrentIndex(-1)
+
+        sputnik_data = self.sputnik
+        self.klapan_flow.setText('')
+        for i in (1, 2, 3, 4, 11):
+            sputnik_data.itemAtPosition(2, i).widget().setText('')
+        for i in (1, 2, 11):
+            sputnik_data.itemAtPosition(4, i).widget().setText('')
+        self.radio_button1.setChecked(True)
+
+        self.activate_deflector.setChecked(False)
+        deflector = self.deflector
+        for i in range(9):
+            deflector.itemAtPosition(i, 1).widget().setText('')
 
 
 
