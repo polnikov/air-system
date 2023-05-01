@@ -148,6 +148,7 @@ class MainWindow(QMainWindow):
         _hbox1.addWidget(self.create_sputnik_calculation())
 
         _hbox2 = QHBoxLayout()
+        _hbox2.setContentsMargins(10, 3, 10, 0)
         _hbox2.addWidget(self.create_deflector_checkbox())
         _hbox2.addWidget(self.create_channel_cap())
         _hbox2.addWidget(self.create_buttons_box())
@@ -712,6 +713,8 @@ class MainWindow(QMainWindow):
                     label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
                     label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 10 | 11:
+                    label.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
             label.setFixedHeight(CONSTANTS.MAIN_TABLE.HEADER_HEIGHT)
 
             match i:
@@ -722,7 +725,6 @@ class MainWindow(QMainWindow):
 
         _layout.itemAtPosition(0, 6).widget().hide()
 
-        _layout.setSpacing(4)
         _widget.setLayout(_layout)
         return _widget
 
@@ -731,6 +733,7 @@ class MainWindow(QMainWindow):
         self.rows_count += 1
         _widget = QWidget()
         _layout = QGridLayout()
+        _layout.setContentsMargins(10, 3, 10, 3)
         _layout.setObjectName(CONSTANTS.MAIN_TABLE.ROW_NAME)
 
         input_edit_style = 'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
@@ -739,13 +742,15 @@ class MainWindow(QMainWindow):
         for i in range(len(CONSTANTS.MAIN_TABLE.LABELS)):
             edit = QLineEdit()
             edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            edit.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+            edit.setFixedHeight(CONSTANTS.MAIN_TABLE.HEIGHT)
             match i:
                 case 0:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 10 | 11:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
 
             match i:
@@ -819,7 +824,6 @@ class MainWindow(QMainWindow):
         _layout.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
         _layout.itemAtPosition(0, 6).widget().hide()
 
-        _layout.setSpacing(4)
         _widget.setLayout(_layout)
         return _widget
 
@@ -827,6 +831,7 @@ class MainWindow(QMainWindow):
     def create_last_row(self) -> object:
         _widget = QWidget()
         _layout = QGridLayout()
+        _layout.setContentsMargins(10, 0, 10, 3)
         self.last_row = _layout
         _layout.setObjectName(CONSTANTS.MAIN_TABLE.LAST_ROW_NAME)
 
@@ -836,13 +841,15 @@ class MainWindow(QMainWindow):
         for i in range(len(CONSTANTS.MAIN_TABLE.LABELS)):
             edit = QLineEdit()
             edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            edit.setFixedHeight(CONSTANTS.SPUTNIK_TABLE.HEIGHT)
+            edit.setFixedHeight(CONSTANTS.MAIN_TABLE.HEIGHT)
             match i:
                 case 0:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 1 | 2 | 3 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
                 case 4 | 5 | 6 | 7 | 8 | 9:
+                    edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
+                case 10 | 11:
                     edit.setFixedWidth(CONSTANTS.MAIN_TABLE.WIDTHS.get(i))
 
             match i:
@@ -909,7 +916,6 @@ class MainWindow(QMainWindow):
         _layout.itemAtPosition(0, 0).widget().setText(self.get_sum_all_rows_str())
         _layout.itemAtPosition(0, 6).widget().hide()
 
-        _layout.setSpacing(4)
         _widget.setLayout(_layout)
         return _widget
 
