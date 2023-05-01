@@ -5,10 +5,11 @@ import requests
 import json
 import urllib.request
 from urllib.parse import urlparse
+from collections import deque
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
-from PySide6.QtCore import QSize, Qt, QRegularExpression, QTimer, QStandardPaths
+from PySide6.QtCore import QSettings, QSize, Qt, QRegularExpression, QTimer, QStandardPaths
 from PySide6.QtGui import QRegularExpressionValidator, QFont, QIcon, QRegularExpressionValidator, QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -30,6 +31,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QFileDialog,
     QProgressDialog,
+    QMenu,
 )
 
 from constants import CONSTANTS
@@ -84,10 +86,9 @@ class MainWindow(QMainWindow):
         self.auto_save_timer.timeout.connect(self.auto_save)
         self.auto_save_timer.start(300_000) # 5 minutes in milliseconds
 
-
-
         menubar = self.menuBar()
         file_menu = menubar.addMenu(CONSTANTS.MENU[0])
+        self.file_menu = file_menu
 
         manual_action = QAction(CONSTANTS.MENU[1], self)
         menubar.addAction(manual_action)
@@ -120,11 +121,15 @@ class MainWindow(QMainWindow):
             help_menu.addAction(action)
             action.triggered.connect(HELP_MENU_HANDLERS[h])
 
+        self.recent_files_menu = QMenu('Открыть недавние', self)
+        self.recent_files_menu.setIcon(QIcon(os.path.join(basedir, CONSTANTS.RECENT_FILES_ICONS[-1])))
+        file_menu.addMenu(self.recent_files_menu)
+        self.recent_files = deque(maxlen=5)
+        self.settings = QSettings("akudja.technology", "natural-air-system")
+        self.load_recent_files()
+        self.update_recent_files_menu()
 
         menubar.setStyleSheet('font-family: Consolas; font-size: 11px;')
-
-
-
 
         self.tab_widget = QTabWidget(self)
         self.setCentralWidget(self.tab_widget)
@@ -2268,7 +2273,10 @@ class MainWindow(QMainWindow):
         options = QFileDialog.Options()
         open_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
         file_name, _ = QFileDialog.getOpenFileName(self, "Выберите файл расчёта", open_dir, "JSON файл (*.json);;Все файлы (*)", options=options)
+        self._open_file(file_name)
 
+
+    def _open_file(self, file_name) -> None:
         if file_name:
             try:
                 with open(file_name) as f:
@@ -2358,9 +2366,57 @@ class MainWindow(QMainWindow):
                 self.current_file_path = file_name
                 self.setWindowTitle(f'{self.app_title} | {file_name}')
                 progress.close()
+                self.add_recent_file(file_name)
 
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", f"Не удалось открыть файл: {e}")
+
+
+    def open_recent_file(self, file_path):
+        self._open_file(file_path)
+
+
+    def add_recent_file(self, file_path):
+        if file_path not in self.recent_files:
+            self.recent_files.appendleft(file_path)
+        else:
+            self.recent_files.remove(file_path)
+            self.recent_files.appendleft(file_path)
+        self.settings.setValue("recentFiles", list(self.recent_files))
+        self.update_recent_files_menu()
+
+
+    def load_recent_files(self):
+        recent_files = self.settings.value("recentFiles", [])
+        if recent_files:
+            self.recent_files.extend(recent_files)
+
+
+    def update_recent_files_menu(self):
+        self.recent_files_menu.clear()
+        for i, file_path in enumerate(self.recent_files):
+            action = QAction(file_path, self)
+            action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.RECENT_FILES_ICONS[i])))
+            action.triggered.connect(lambda: self.open_recent_file(file_path))
+            self.recent_files_menu.addAction(action)
+
+        self.recent_files_menu.addSeparator()
+
+        clear_action = QAction("Очистить список", self)
+        clear_action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.RECENT_FILES_ICONS[-2])))
+        clear_action.triggered.connect(self.clear_recent_files)
+        self.recent_files_menu.addAction(clear_action)
+
+
+    def clear_recent_files(self):
+        self.recent_files.clear()
+        self.settings.remove("recentFiles")
+        self.update_recent_files_menu()
+
+
+    def closeEvent(self, event):
+        self.settings.setValue("recentFiles", list(self.recent_files))
+        super().closeEvent(event)
 
 
     def _remove_all_main_rows(self) -> None:

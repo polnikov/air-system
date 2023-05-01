@@ -40,6 +40,15 @@ class CONSTANTS:
         './icons/about.png',
         './icons/update.png',
     )
+    RECENT_FILES_ICONS = (
+        './icons/1.png',
+        './icons/2.png',
+        './icons/3.png',
+        './icons/4.png',
+        './icons/5.png',
+        './icons/clear.png',
+        './icons/recent_files.png',
+    )
     ABOUT = '''<html>
     📄 Программа основана на методике...<hr>
     💡 Методика: Константин @ <font color="blue">nedich@mail.ru</font><br>
