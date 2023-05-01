@@ -2425,7 +2425,6 @@ class MainWindow(QMainWindow):
     def update_recent_files_menu(self) -> None:
         self.recent_files_menu.clear()
         recent_files = self.settings.value("recentFiles", [])
-        # print(recent_files)
         for i, file_path in enumerate(recent_files):
             action = QAction(file_path, self)
             action.setIcon(QIcon(os.path.join(basedir, CONSTANTS.RECENT_FILES_ICONS[i])))
