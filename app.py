@@ -11,7 +11,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_ORIENT
 from datetime import datetime
 from functools import partial
-from urllib.parse import urlparse
 from collections import deque
 from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
