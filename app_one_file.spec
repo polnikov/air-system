@@ -13,6 +13,7 @@ a = Analysis(
         ('app.ico', '.'),
         ('icons/*.png', 'icons'),
     ],
+    excludes=['tests'],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
