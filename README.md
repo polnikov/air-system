@@ -1,6 +1,6 @@
 ## The program for calculating natural ventilation using vertical ventilation units with satellite channels
 
-[![CodeQL](https://github.com/polnikov/air-system/actions/workflows/codeql-analysis.yml/badge.svg?branch=main&event=push)](https://github.com/polnikov/air-system/actions/workflows/codeql-analysis.yml)
+[![CodeQL](https://github.com/polnikov/air-system/actions/workflows/codeql-analysis.yml/badge.svg?branch=main&event=push)](https://github.com/polnikov/air-system/actions/workflows/codeql-analysis.yml) [![GitHub release](https://img.shields.io/github/v/release/polnikov/air-system?sort=semver)](https://github.com/polnikov/air-system/releases/latest)
 
 Программа расчёта системы естественной вытяжной вентиляции организованной с помощью вентблоков со спутник-каналами и приточных инфильтрационных клапанов, размеры сечений каналов от 0 до 2000 мм
 
