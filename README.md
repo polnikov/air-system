@@ -2,7 +2,7 @@
 
 [![CodeQL](https://github.com/polnikov/air-system/actions/workflows/codeql-analysis.yml/badge.svg?branch=main&event=push)](https://github.com/polnikov/air-system/actions/workflows/codeql-analysis.yml) [![GitHub release](https://img.shields.io/github/v/release/polnikov/air-system?sort=semver)](https://github.com/polnikov/air-system/releases/latest)
 
-Программа расчёта системы естественной вытяжной вентиляции организованной с помощью вентблоков со спутник-каналами и приточных инфильтрационных клапанов, размеры сечений каналов от 0 до 2000 мм
+Программа расчёта системы естественной вытяжной вентиляции организованной с помощью вентблоков с каналами-спутниками и приточных инфильтрационных клапанов, размеры сечений каналов от 0 до 2000 мм
 
 ### **Main stack:**
 - Python 3.10.6

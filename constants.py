@@ -348,6 +348,9 @@ class CONSTANTS:
 
     class EXPORT:
         TITLE = 'Результаты расчёта естественной вентиляции'
+        FORMULA = 'Расчётная формула:'
+        FORMULA_IMG = './icons/formula.png'
+
 
 
         class INIT_DATA:
@@ -373,7 +376,7 @@ class CONSTANTS:
 
 
         class SPUTNIK:
-            TITLE = 'Расчёт спутник-канала'
+            TITLE = 'Расчёт канала-спутника'
 
 
         class MAIN_TABLE:

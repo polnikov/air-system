@@ -55,7 +55,7 @@ try:
 except ImportError:
     pass
 
-version = '1.0.0'
+version = '1.0.1'
 
 
 class CustomComboBox(QComboBox):
@@ -2453,7 +2453,7 @@ class MainWindow(QMainWindow):
             for col in range(3):
                 set_column_width(table_1.columns[col], widths[col])
             for row in range(7):
-                        set_row_height(table_1.rows[row], 7)
+                set_row_height(table_1.rows[row], 7)
 
             init_data = data['init_data']
             values = table_1.columns[1].cells
@@ -2544,6 +2544,11 @@ class MainWindow(QMainWindow):
             set_column_width(table_3.columns[0], 15)
             set_column_width(table_3.columns[1], 15)
             set_column_width(table_3.columns[main_data['num_cols'] - 1], 25)
+            doc.add_paragraph()
+
+            # add formula
+            doc.add_paragraph(CONSTANTS.EXPORT.FORMULA, style='TableTitleStyle')
+            doc.add_paragraph().add_run().add_picture(os.path.join(basedir, CONSTANTS.EXPORT.FORMULA_IMG), width=Cm(12))
             doc.add_paragraph()
 
             if data.get('cap_0'):
@@ -2656,7 +2661,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, 'Информация', 'Расчёт успешно экспортирован')
             os.startfile(os.path.join(basedir, f'{file_name}.docx'))
         else:
-            QMessageBox.critical(self, 'Ошибка', 'Данные для экспорта не были сформированы')
+            QMessageBox.critical(self, 'Ошибка', 'Пока нечего экспортировать')
 
 
     def save_as(self) -> None:
