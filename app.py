@@ -3,8 +3,7 @@ import platform
 import math
 import requests
 import json
-import urllib.request
-
+import webbrowser
 import docx
 from docx.shared import Cm, Pt, Mm
 from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
@@ -55,7 +54,7 @@ try:
 except ImportError:
     pass
 
-version = '1.0.1'
+version = '1.0.2'
 
 
 class CustomComboBox(QComboBox):
@@ -2259,21 +2258,15 @@ class MainWindow(QMainWindow):
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.Yes:
-                    save_path, _ = QFileDialog.getSaveFileName(self, 'Сохранить новую версию', os.path.basename(urlparse(download_url).path))
-                    if save_path:
-                        file_content = self._download_file(download_url)
-                        with open(save_path, 'wb') as f:
-                            f.write(file_content)
+                    self.download_file(download_url)
             else:
                 QMessageBox.information(self, 'Проверка обновления', 'Вы используете последнюю версию')
         except KeyError:
             QMessageBox.information(self, 'Проверка обновления', 'Проверка обновлений временно недоступна. Попробуйте, пожалуйста, попозже.')
 
 
-    def _download_file(url):
-        response = urllib.request.urlopen(url)
-        data = response.read()
-        return data
+    def download_file(self, url):
+        webbrowser.open(url)
 
 
     def _get_data_for_save(self) -> dict:

@@ -3,7 +3,7 @@
 
 block_cipher = None
 
-version = 'v1.0.1'
+version = 'v1.0.2'
 
 a = Analysis(
     ['app.py'],
