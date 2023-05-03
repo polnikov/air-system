@@ -3,12 +3,6 @@ class CONSTANTS:
     TAB1_TITLE = "Основной расчёт"
     TAB2_TITLE = "Расчёт дефлектора"
     ACCELERATION_OF_GRAVITY = 9.81
-
-    RESULT_ICONS = (
-        './icons/ok.png',
-        './icons/no.png',
-    )
-
     MENU = (
         'Файл',
         'Руководство',
