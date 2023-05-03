@@ -8,6 +8,7 @@
 - scipy 1.10.1
 - numpy 1.24.2
 - pyinstaller 5.9.0
+- python-docx 0.8.11
 
 ### **Interface**
 ![Main tab](/docs/img/main_tab.jpg)
