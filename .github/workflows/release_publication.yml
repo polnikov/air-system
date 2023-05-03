@@ -56,8 +56,8 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./exe_packages/air-system_${{ env.TAG_NAME }}.exe
-          asset_name: air-system_${{ env.TAG_NAME }}.exe
+          asset_path: ./exe_packages/natural-air-system_${{ env.TAG_NAME }}.exe
+          asset_name: natural-air-system_${{ env.TAG_NAME }}.exe
           asset_content_type: application/x-msdownload
         env:
           GITHUB_TOKEN: ${{ secrets.TAG_TOKEN }}
