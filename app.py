@@ -400,6 +400,7 @@ class MainWindow(QMainWindow):
         cap_type.currentTextChanged.connect(self.set_channel_cap_relations)
         cap_type.currentTextChanged.connect(self.calculate_channel_cap)
         cap_type.currentTextChanged.connect(self.calculate_full_pressure)
+        cap_type.currentTextChanged.connect(self.calculate_full_pressure_last_row)
         _layout.addWidget(cap_type, 0, 1)
 
         label_2 = QLabel('h')
@@ -936,7 +937,7 @@ class MainWindow(QMainWindow):
                 case 14 | 15:
                     edit.textChanged.connect(self.calculate_linear_pressure_loss_last_row)
                 case 16 | 18 | 19:
-                    edit.textChanged.connect(self.calculate_full_pressure)
+                    edit.textChanged.connect(self.calculate_full_pressure_last_row)
                 case 17:
                     edit.textChanged.connect(self.calculate_specific_pressure_loss)
                 case 20:
@@ -1980,7 +1981,6 @@ class MainWindow(QMainWindow):
             klapan_full_pressure_1 = self.cell_3_13.text()
             if klapan_full_pressure_1:
                 self._calculate_full_pressure(klapan_full_pressure_1)
-                self._calculate_full_pressure_last_row(klapan_full_pressure_1)
             else:
                 rows = self.get_all_rows()
                 for row in rows:
@@ -1994,7 +1994,6 @@ class MainWindow(QMainWindow):
             if all([klapan_full_pressure_1, klapan_full_pressure_2]):
                 klapan_full_pressure = str(max(float(klapan_full_pressure_1), float(klapan_full_pressure_2)))
                 self._calculate_full_pressure(klapan_full_pressure)
-                self._calculate_full_pressure_last_row(klapan_full_pressure_1)
             else:
                 rows = self.get_all_rows()
                 for row in rows:
@@ -2008,11 +2007,9 @@ class MainWindow(QMainWindow):
         if all([self.radio_button1.isChecked(), klapan_full_pressure_1]):
             klapan_full_pressure = klapan_full_pressure_1
             self._calculate_full_pressure(klapan_full_pressure)
-            self._calculate_full_pressure_last_row(klapan_full_pressure)
         elif all([self.radio_button2.isChecked(), klapan_full_pressure_1, klapan_full_pressure_2]):
             klapan_full_pressure = str(max(float(klapan_full_pressure_1), float(klapan_full_pressure_2)))
             self._calculate_full_pressure(klapan_full_pressure)
-            self._calculate_full_pressure_last_row(klapan_full_pressure)
         else:
             rows = self.get_all_rows()
             for row in rows:
@@ -2054,13 +2051,12 @@ class MainWindow(QMainWindow):
                 self.last_row.itemAtPosition(0, 20).widget().setText('')
 
 
-    def _calculate_full_pressure_last_row(self, klapan_full_pressure) -> None:
+    def calculate_full_pressure_last_row(self, value) -> None:
         row = self.last_row
         linear_pressure = row.itemAtPosition(0, 16).widget().text()
         pass_pressure = row.itemAtPosition(0, 18).widget().text()
         branch_pressure = row.itemAtPosition(0, 19).widget().text()
-        if all([linear_pressure != '', pass_pressure != '', branch_pressure != '', klapan_full_pressure]):
-            klapan_full_pressure = float(klapan_full_pressure)
+        if all([linear_pressure != '', pass_pressure != '', branch_pressure != '']):
             linear_pressure = float(linear_pressure)
             pass_pressure = float(pass_pressure)
             branch_pressure = float(branch_pressure)
@@ -2069,7 +2065,7 @@ class MainWindow(QMainWindow):
                 cap_pressure = float(self.cap_pressure.text())
             else:
                 cap_pressure = 0
-            result = klapan_full_pressure + branch_pressure + pass_pressure + linear_pressure + cap_pressure
+            result = branch_pressure + pass_pressure + linear_pressure + cap_pressure
             result = '{:.3f}'.format(round(result, 3))
             row.itemAtPosition(0, 20).widget().setText(result)
         else:
