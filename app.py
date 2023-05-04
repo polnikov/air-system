@@ -506,6 +506,11 @@ class MainWindow(QMainWindow):
                 border: 2px solid grey;
                 background: transparent;
             }
+            QPushButton:pressed {
+                border: 0px;
+                background: black;
+                color: white;
+            }
         ''')
         _layout.addWidget(add_row_button)
         add_row_button.clicked.connect(self.add_row)
@@ -540,6 +545,11 @@ class MainWindow(QMainWindow):
             QPushButton:hover {
                 border: 2px solid grey;
                 background: transparent;
+            }
+            QPushButton:pressed {
+                border: 0px;
+                background: black;
+                color: white;
             }
         ''')
         _layout.addWidget(delete_row_button)
