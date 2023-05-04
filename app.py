@@ -1004,6 +1004,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, 'Ошибка', 'Больше нет этажей для удаления')
         else:
             QMessageBox.critical(self, 'Ошибка', 'Не указан этаж для удаления')
+            self.input_for_delete.setFocus()
 
 
     def uncheck_radio_button_1(self) -> None:
