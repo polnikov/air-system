@@ -1295,7 +1295,8 @@ class MainWindow(QMainWindow):
             two_side_flow = self.sputnik.itemAtPosition(4, 1).widget().text()
             if all([one_side_flow, two_side_flow]):
                 flow = int(one_side_flow) + int(two_side_flow)
-                self._fill_air_flow_column_in_main_table(str(flow))
+                max_flow = max(int(one_side_flow), int(two_side_flow))
+                self._fill_air_flow_column_in_main_table(str(flow), str(max_flow))
             else:
                 self._clean_air_flow_column_in_table()
 
@@ -1309,19 +1310,22 @@ class MainWindow(QMainWindow):
 
         elif all([self.radio_button2.isChecked(), one_side_flow, two_side_flow]):
             flow = int(one_side_flow) + int(two_side_flow)
-            self._fill_air_flow_column_in_main_table(str(flow))
+            max_flow = max(int(one_side_flow), int(two_side_flow))
+            self._fill_air_flow_column_in_main_table(str(flow), str(max_flow))
         else:
             self._clean_air_flow_column_in_table()
 
 
-    def _fill_air_flow_column_in_main_table(self, flow) -> None:
-        if flow:
+    def _fill_air_flow_column_in_main_table(self, flow, max_flow=False) -> None:
+        if max_flow:
+            self.last_row.itemAtPosition(0, 3).widget().setText(max_flow)
+        else:
             self.last_row.itemAtPosition(0, 3).widget().setText(flow)
-            rows = self.get_main_rows()
-            rows[-1].itemAtPosition(0, 3).widget().setText(flow)
-            for i in range(len(rows)):
-                result = int(flow) * int(rows[i].itemAtPosition(0, 0).widget().text())
-                rows[i].itemAtPosition(0, 3).widget().setText(str(result))
+        rows = self.get_main_rows()
+        rows[-1].itemAtPosition(0, 3).widget().setText(flow)
+        for i in range(len(rows)):
+            result = int(flow) * int(rows[i].itemAtPosition(0, 0).widget().text())
+            rows[i].itemAtPosition(0, 3).widget().setText(str(result))
 
 
     def _clean_air_flow_column_in_table(self) -> None:
