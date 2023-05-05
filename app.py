@@ -52,7 +52,7 @@ try:
 except ImportError:
     pass
 
-version = '1.0.2'
+version = '1.0.3'
 
 
 class CustomComboBox(QComboBox):
@@ -2360,17 +2360,17 @@ class MainWindow(QMainWindow):
         main_data = {}
         rows = self.get_all_rows()
         main_data['num_rows'] = self.get_sum_all_rows_int()+1
-        if self.cap_type.currentText() != CONSTANTS.CAP.TYPES[-1]:
+        cap = self.cap_type.currentText()
+        if cap != CONSTANTS.CAP.TYPES[-1]:
             main_data['num_cols'] = 21
             main_data['headers'] = [self.header.itemAtPosition(0, i).widget().text() for i in range(22) if i != 6]
             for i in range(len(rows)):
                 main_data[f'line_{i}'] = [rows[i].itemAtPosition(0, j).widget().text() for j in range(22) if j != 6]
             data['main_data'] = main_data
 
-            cap = self.cap_type.currentText()
             if cap == CONSTANTS.CAP.TYPES[1]:
                 data['cap_0'] = [cap, self.cap_pressure.text()]
-        elif cap in CONSTANTS.CAP.TYPES[2:4]:
+            elif cap in CONSTANTS.CAP.TYPES[2:4]:
                 h = self.channel_cap_grid.itemAtPosition(0, 3).widget().text()
                 data['cap_1'] = [cap, h, self.relations.currentText(), self.cap_pressure.text()]
         else:
