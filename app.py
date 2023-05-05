@@ -193,7 +193,7 @@ class MainWindow(QMainWindow):
         _hbox1.addWidget(self.create_sputnik_calculation())
 
         _hbox2 = QHBoxLayout()
-        _hbox2.setContentsMargins(10, 3, 10, 0)
+        _hbox2.setContentsMargins(-1, 3, -1, 0)
         _hbox2.addWidget(self.create_channel_cap())
         _hbox2.addWidget(self.create_buttons_box())
         _layout.setAlignment(_hbox2, Qt.AlignmentFlag.AlignTop)
