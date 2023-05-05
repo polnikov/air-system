@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
     QMessageBox,
-    QCheckBox,
     QPushButton,
     QLabel,
     QLineEdit,
@@ -179,6 +178,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.tab_widget)
         self.tab_widget.addTab(self.create_tab1_content(), CONSTANTS.TAB1_TITLE)
         self.tab_widget.addTab(self.create_tab2_content(), CONSTANTS.TAB2_TITLE)
+        self.tab_widget.setTabVisible(1, False)
 
         self.showMaximized()
         self.setMaximumWidth(1680)
@@ -194,7 +194,6 @@ class MainWindow(QMainWindow):
 
         _hbox2 = QHBoxLayout()
         _hbox2.setContentsMargins(10, 3, 10, 0)
-        _hbox2.addWidget(self.create_deflector_checkbox())
         _hbox2.addWidget(self.create_channel_cap())
         _hbox2.addWidget(self.create_buttons_box())
         _layout.setAlignment(_hbox2, Qt.AlignmentFlag.AlignTop)
@@ -354,26 +353,6 @@ class MainWindow(QMainWindow):
         return _box
 
 
-    def create_deflector_checkbox(self) -> object:
-        _widget = QWidget()
-        _layout = QHBoxLayout()
-
-        label = QLabel(CONSTANTS.BUTTONS.ADD_DEFLECTOR)
-        label.setStyleSheet('QLabel { color: blue; }')
-        self.activate_deflector = QCheckBox()
-        activate_deflector = self.activate_deflector
-        activate_deflector.setDisabled(True)
-        activate_deflector.setChecked(False)
-        activate_deflector.stateChanged.connect(self.show_deflector_in_table)
-        activate_deflector.stateChanged.connect(self.calculate_available_pressure)
-        activate_deflector.stateChanged.connect(self.activate_channel_cap)
-
-        _layout.addWidget(label)
-        _layout.addWidget(activate_deflector)
-        _widget.setLayout(_layout)
-        return _widget
-
-
     def create_channel_cap(self) -> object:
         _widget = QWidget()
         self.channel_cap_widget = _widget
@@ -401,6 +380,13 @@ class MainWindow(QMainWindow):
         cap_type.currentTextChanged.connect(self.calculate_channel_cap)
         cap_type.currentTextChanged.connect(self.calculate_full_pressure)
         cap_type.currentTextChanged.connect(self.calculate_full_pressure_last_row)
+
+        cap_type.currentTextChanged.connect(self.show_deflector_in_table)
+        cap_type.currentTextChanged.connect(self.calculate_available_pressure)
+        cap_type.currentTextChanged.connect(self.activate_channel_cap)
+        cap_type.currentTextChanged.connect(self.activate_deflector_tab)
+
+
         _layout.addWidget(cap_type, 0, 1)
 
         label_2 = QLabel('h')
@@ -1388,9 +1374,9 @@ class MainWindow(QMainWindow):
 
 
     def calculate_available_pressure(self) -> None:
-        deflector_is_checked = self.activate_deflector.isChecked()
+        cap = self.cap_type.currentText()
         deflector_pressure = self.last_row.itemAtPosition(0, 6).widget().text()
-        if all([deflector_is_checked, deflector_pressure]):
+        if all([cap == CONSTANTS.CAP.TYPES[-1], deflector_pressure]):
             rows = self.get_all_rows()
             for row in rows:
                 gravi_pressure = row.itemAtPosition(0, 5).widget().text()
@@ -1517,7 +1503,6 @@ class MainWindow(QMainWindow):
         wind_velocity.textChanged.connect(self.calculate_deflector_pressure)
         pressure_relation.textChanged.connect(self.calculate_deflector_pressure)
 
-        deflector_pressure.textChanged.connect(self.activate_deflector_checkbox)
         deflector_pressure.textChanged.connect(self.set_deflector_pressure_in_table)
 
         _box.setLayout(_layout)
@@ -1625,15 +1610,16 @@ class MainWindow(QMainWindow):
             self.deflector.itemAtPosition(8, 1).widget().setText('')
 
 
-    def activate_deflector_checkbox(self, value) -> None:
-        deflector_pressure = value
-        if deflector_pressure:
-            self.activate_deflector.setDisabled(False)
+    def activate_deflector_tab(self, text) -> None:
+        if text == CONSTANTS.CAP.TYPES[-1]:
+            self.tab_widget.setTabVisible(1, True)
+        else:
+            self.tab_widget.setTabVisible(1, False)
 
 
-    def show_deflector_in_table(self, state) -> None:
+    def show_deflector_in_table(self, text) -> None:
         rows = self.get_all_rows()
-        if state == 2:
+        if text == CONSTANTS.CAP.TYPES[-1]:
             self.header.itemAtPosition(0, 6).widget().setVisible(True)
             for row in rows:
                 row.itemAtPosition(0, 6).widget().setVisible(True)
@@ -2053,7 +2039,7 @@ class MainWindow(QMainWindow):
                         all_linear_pressure.append(linear_pressure)
                 sum_linear_pressure = sum(map(float, all_linear_pressure))
 
-                if not self.activate_deflector.isChecked() and self.cap_pressure.text():
+                if self.cap_type.currentText() != CONSTANTS.CAP.TYPES[-1] and self.cap_pressure.text():
                     cap_pressure = float(self.cap_pressure.text())
                 else:
                     cap_pressure = 0
@@ -2076,7 +2062,7 @@ class MainWindow(QMainWindow):
             pass_pressure = float(pass_pressure)
             branch_pressure = float(branch_pressure)
 
-            if not self.activate_deflector.isChecked() and self.cap_pressure.text():
+            if self.cap_type.currentText() != CONSTANTS.CAP.TYPES[-1] and self.cap_pressure.text():
                 cap_pressure = float(self.cap_pressure.text())
             else:
                 cap_pressure = 0
@@ -2099,13 +2085,16 @@ class MainWindow(QMainWindow):
         if current_value == CONSTANTS.CAP.TYPES[1]:
             for i in (8, 9, 10):
                 self.channel_cap_grid.itemAtPosition(0, i).widget().setVisible(True)
-            for i in (2, 3, 4, 5, 6, 7):
+            for i in range(2, 8):
                 self.channel_cap_grid.itemAtPosition(0, i).widget().hide()
-        elif current_value != CONSTANTS.CAP.TYPES[1]:
+        elif current_value in CONSTANTS.CAP.TYPES[2:4]:
             for i in (2, 3, 4, 5, 6, 7, 8, 9, 10):
                 self.channel_cap_grid.itemAtPosition(0, i).widget().setVisible(True)
+        elif current_value == CONSTANTS.CAP.TYPES[-1]:
+            for i in range(2, 11):
+                self.channel_cap_grid.itemAtPosition(0, i).widget().hide()
         else:
-            for i in (2, 3, 4, 5, 6, 7):
+            for i in range(2, 8):
                 self.channel_cap_grid.itemAtPosition(0, i).widget().hide()
 
 
@@ -2121,7 +2110,7 @@ class MainWindow(QMainWindow):
 
 
     def set_channel_cap_relations(self, value) -> None:
-        if value in (CONSTANTS.CAP.TYPES[2:]):
+        if value in (CONSTANTS.CAP.TYPES[2:4]):
             self.relations.clear()
             self.relations.addItems(CONSTANTS.CAP.RELATIONS.get(value))
             self.relations.insertSeparator(2)
@@ -2131,44 +2120,45 @@ class MainWindow(QMainWindow):
 
     def calculate_channel_cap(self, value) -> None:
         current_value = self.cap_type.currentText()
-        if self.get_main_rows():
-            if current_value == CONSTANTS.CAP.TYPES[1]:
-                w = self.get_main_rows()[0].itemAtPosition(0, 12).widget().text()
-                D = self.get_main_rows()[0].itemAtPosition(0, 13).widget().text()
-                temperature = self.temperature_widget.text()
-                if all([D, w, temperature]):
-                    kms = 1
-                    D, w, temperature = float(D), float(w), float(temperature)
-                    result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
-                    result = '{:.3f}'.format(round(result, 3))
-                    self.cap_pressure.setText(result)
-                    self._calculate_channel_cap(result)
-                else:
-                    self.cap_pressure.setText('')
-            elif current_value in CONSTANTS.CAP.TYPES[2:]:
-                D = self.get_main_rows()[0].itemAtPosition(0, 13).widget().text()
-                h = self.input_h.text()
-                if D and h:
-                    D, h = float(D), float(h)
-                    relation = h / D
-                    relation = '{:.2f}'.format(round(relation, 2))
-                    self.fact_relation.setText(relation)
-                else:
-                    self.fact_relation.setText('')
+        if current_value in CONSTANTS.CAP.TYPES[1:4]:
+            if self.get_main_rows():
+                if current_value == CONSTANTS.CAP.TYPES[1]:
+                    w = self.get_main_rows()[0].itemAtPosition(0, 12).widget().text()
+                    D = self.get_main_rows()[0].itemAtPosition(0, 13).widget().text()
+                    temperature = self.temperature_widget.text()
+                    if all([D, w, temperature]):
+                        kms = 1
+                        D, w, temperature = float(D), float(w), float(temperature)
+                        result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
+                        result = '{:.3f}'.format(round(result, 3))
+                        self.cap_pressure.setText(result)
+                        self._calculate_channel_cap(result)
+                    else:
+                        self.cap_pressure.setText('')
+                elif current_value in CONSTANTS.CAP.TYPES[2:4]:
+                    D = self.get_main_rows()[0].itemAtPosition(0, 13).widget().text()
+                    h = self.input_h.text()
+                    if D and h:
+                        D, h = float(D), float(h)
+                        relation = h / D
+                        relation = '{:.2f}'.format(round(relation, 2))
+                        self.fact_relation.setText(relation)
+                    else:
+                        self.fact_relation.setText('')
 
-                w = self.get_main_rows()[0].itemAtPosition(0, 12).widget().text()
-                user_relation = self.relations.currentText()
-                kms_data = CONSTANTS.CAP.RELATIONS.get(current_value)
-                kms = kms_data.get(user_relation, False)
-                temperature = self.temperature_widget.text()
-                if all([D, w, kms, temperature]):
-                    w, temperature = float(w), float(temperature)
-                    result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
-                    result = '{:.3f}'.format(round(result, 3))
-                    self.cap_pressure.setText(result)
-                    self._calculate_channel_cap(result)
-                else:
-                    self.cap_pressure.setText('')
+                    w = self.get_main_rows()[0].itemAtPosition(0, 12).widget().text()
+                    user_relation = self.relations.currentText()
+                    kms_data = CONSTANTS.CAP.RELATIONS.get(current_value)
+                    kms = kms_data.get(user_relation, False)
+                    temperature = self.temperature_widget.text()
+                    if all([D, w, kms, temperature]):
+                        w, temperature = float(w), float(temperature)
+                        result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
+                        result = '{:.3f}'.format(round(result, 3))
+                        self.cap_pressure.setText(result)
+                        self._calculate_channel_cap(result)
+                    else:
+                        self.cap_pressure.setText('')
 
 
     def _calculate_channel_cap(self, pressure) -> None:
@@ -2232,7 +2222,7 @@ class MainWindow(QMainWindow):
             sputnik_data.itemAtPosition(4, i).widget().setText('')
         self.radio_button1.setChecked(True)
 
-        self.activate_deflector.setChecked(False)
+        self.tab_widget.setTabVisible(1, False)
         deflector = self.deflector
         for i in range(9):
             deflector.itemAtPosition(i, 1).widget().setText('')
@@ -2313,18 +2303,17 @@ class MainWindow(QMainWindow):
             sputnik_data.append({'is_checked': 2})
         data['sputnik_data'] = sputnik_data
 
-        if self.activate_deflector.isChecked():
+        cap = self.cap_type.currentText()
+        if cap == CONSTANTS.CAP.TYPES[-1]:
             wind = self.deflector.itemAtPosition(0, 1).widget().text()
             flow = self.deflector.itemAtPosition(2, 1).widget().text()
             data['deflector'] = [wind, flow]
-        else:
-            cap = self.cap_type.currentText()
-            if cap == CONSTANTS.CAP.TYPES[1]:
-                data['cap_0'] = cap
-            else:
-                h = self.channel_cap_grid.itemAtPosition(0, 2).widget().text()
-                relation = self.relations.currentText()
-                data['cap_1'] = [cap, h, relation]
+        elif cap == CONSTANTS.CAP.TYPES[1]:
+            data['cap_0'] = cap
+        elif cap in CONSTANTS.CAP.TYPES[2:4]:
+            h = self.channel_cap_grid.itemAtPosition(0, 2).widget().text()
+            relation = self.relations.currentText()
+            data['cap_1'] = [cap, h, relation]
 
         last_row = [self.last_row.itemAtPosition(0, i).widget().text() for i in (1, 2, 8, 10, 11)]
         data['last_row'] = last_row
@@ -2371,7 +2360,7 @@ class MainWindow(QMainWindow):
         main_data = {}
         rows = self.get_all_rows()
         main_data['num_rows'] = self.get_sum_all_rows_int()+1
-        if not self.activate_deflector.isChecked():
+        if self.cap_type.currentText() != CONSTANTS.CAP.TYPES[-1]:
             main_data['num_cols'] = 21
             main_data['headers'] = [self.header.itemAtPosition(0, i).widget().text() for i in range(22) if i != 6]
             for i in range(len(rows)):
@@ -2381,7 +2370,7 @@ class MainWindow(QMainWindow):
             cap = self.cap_type.currentText()
             if cap == CONSTANTS.CAP.TYPES[1]:
                 data['cap_0'] = [cap, self.cap_pressure.text()]
-            else:
+        elif cap in CONSTANTS.CAP.TYPES[2:4]:
                 h = self.channel_cap_grid.itemAtPosition(0, 3).widget().text()
                 data['cap_1'] = [cap, h, self.relations.currentText(), self.cap_pressure.text()]
         else:
@@ -2781,11 +2770,11 @@ class MainWindow(QMainWindow):
                     if data.get('deflector', False):
                         self.deflector.itemAtPosition(0, 1).widget().setText(data['deflector'][0])
                         self.deflector.itemAtPosition(2, 1).widget().setText(data['deflector'][1])
-                        self.activate_deflector.setChecked(True)
-                        self.show_deflector_in_table(state=2)
+                        self.tab_widget.setTabVisible(1, True)
+                        self.cap_type.setCurrentIndex(4)
                     # сap data
                     else:
-                        self.activate_deflector.setChecked(False)
+                        self.tab_widget.setTabVisible(1, False)
                         if data.get('cap_0', False):
                             self.cap_type.setCurrentText(CONSTANTS.CAP.TYPES[1])
                         else:
@@ -2858,7 +2847,7 @@ class MainWindow(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 'Подтверждение',
-                '''<html><center>Вы уверены, что хотите закрыть программу?<br><font color="red">Не сохраненный расчет будет потерян</font></center></html>
+                '''<html><center>Вы уверены, что хотите закрыть программу?<br><font color="red">Несохраненный расчет будет потерян</font></center></html>
                 ''',
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No
             )
