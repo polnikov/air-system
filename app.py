@@ -52,7 +52,7 @@ try:
 except ImportError:
     pass
 
-version = '1.0.3'
+version = '1.0.4'
 
 
 class CustomComboBox(QComboBox):
@@ -2234,9 +2234,8 @@ class MainWindow(QMainWindow):
 
 
     def open_manual(self):
-        QMessageBox.information(self, 'Информация', 'Руководство находится в разработке')
-        # if platform.system() == 'Windows':
-        #     os.startfile(os.path.join(basedir, 'natural_air_system_manual.pdf'))
+        if platform.system() == 'Windows':
+            os.startfile(os.path.join(basedir, 'natural_air_system_manual.pdf'))
 
 
     def show_about(self) -> None:
@@ -2777,7 +2776,7 @@ class MainWindow(QMainWindow):
                         self.tab_widget.setTabVisible(1, False)
                         if data.get('cap_0', False):
                             self.cap_type.setCurrentText(CONSTANTS.CAP.TYPES[1])
-                        else:
+                        if data.get('cap_1', False):
                             self.cap_type.setCurrentText(data['cap_1'][0])
                             self.channel_cap_grid.itemAtPosition(0, 2).widget().setText(data['cap_1'][1])
                             self.relations.setCurrentText(data['cap_1'][2])
@@ -2795,6 +2794,7 @@ class MainWindow(QMainWindow):
                 self.update_recent_files_menu()
             except Exception as e:
                 QMessageBox.critical(self, 'Ошибка', f'Не удалось открыть файл:\n{e}')
+                progress.close()
         else:
             QMessageBox.critical(self, 'Ошибка', 'Что то пошло не так...')
 

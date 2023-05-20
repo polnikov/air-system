@@ -3,7 +3,7 @@
 
 block_cipher = None
 
-version = 'v1.0.3'
+version = 'v1.0.4'
 
 a = Analysis(
     ['app.py'],
@@ -11,6 +11,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('app.ico', '.'),
+        ('natural_air_system_manual.pdf', '.'),
         ('icons/*.png', 'icons'),
     ],
     excludes=['tests'],
