@@ -16,7 +16,7 @@ from numpy import array, around
 from scipy.interpolate import RegularGridInterpolator, interp1d
 
 from PySide6.QtCore import QSettings, QSize, Qt, QRegularExpression, QTimer, QStandardPaths
-from PySide6.QtGui import QRegularExpressionValidator, QFont, QIcon, QRegularExpressionValidator, QAction
+from PySide6.QtGui import QRegularExpressionValidator, QFont, QIcon, QAction
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -29,7 +29,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QGroupBox,
     QRadioButton,
-    QComboBox,
     QHBoxLayout,
     QWidget,
     QTabWidget,
@@ -89,7 +88,7 @@ class MainWindow(QMainWindow):
 
         self.auto_save_timer = QTimer()
         self.auto_save_timer.timeout.connect(self.auto_save)
-        self.auto_save_timer.start(300_000) # 5 minutes in milliseconds
+        self.auto_save_timer.start(300_000)  # 5 minutes in milliseconds
 
         menubar = self.menuBar()
         file_menu = menubar.addMenu(CONSTANTS.MENU[0])
@@ -230,7 +229,10 @@ class MainWindow(QMainWindow):
         _widget = QWidget()
         _layout = QVBoxLayout()
         _hbox1 = QHBoxLayout()
-        _hbox1.addWidget(self.create_deflector_calculation(), alignment=(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft))
+        _hbox1.addWidget(
+            self.create_deflector_calculation(),
+            alignment=(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        )
         _layout.addLayout(_hbox1)
         _widget.setLayout(_layout)
         return _widget
@@ -252,7 +254,9 @@ class MainWindow(QMainWindow):
             label_0.setFixedWidth(320)
             line_edit = QLineEdit()
             line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            line_edit.setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+            line_edit.setStyleSheet(
+                'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
+            )
             line_edit.setFixedWidth(CONSTANTS.INIT_DATA.INPUT_WIDTH)
             line_edit.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
             label_1 = QLabel(labels[i][1])
@@ -265,7 +269,7 @@ class MainWindow(QMainWindow):
         self.temperature_widget = temperature_item.widget()
         temperature_widget = self.temperature_widget
         temperature_widget.setObjectName('temperature')
-        temperature_regex = QRegularExpression('^(?:\d|[12]\d|30)(?:\.\d)?$')
+        temperature_regex = QRegularExpression(r'^(?:\d|[12]\d|30)(?:\.\d)?$')
         temperature_validator = QRegularExpressionValidator(temperature_regex)
         temperature_widget.setValidator(temperature_validator)
         temperature_widget.textChanged.connect(self.calculate_sputnik_specific_pressure_loss)
@@ -281,7 +285,7 @@ class MainWindow(QMainWindow):
         self.surface_widget = surface_item.widget()
         surface_widget = self.surface_widget
         surface_widget.setObjectName('surface')
-        surface_regex = QRegularExpression('^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$')
+        surface_regex = QRegularExpression(r'^(?:[0-9]|[1-9]\d|100)(?:\.\d{1,3})?$')
         surface_validator = QRegularExpressionValidator(surface_regex)
         surface_widget.setValidator(surface_validator)
         surface_widget.setToolTip(CONSTANTS.INIT_DATA.SURFACE_INPUT_TOOLTIP)
@@ -291,7 +295,7 @@ class MainWindow(QMainWindow):
         floor_height_item = _init_data.itemAtPosition(2, 1)
         self.floor_height_widget = floor_height_item.widget()
         floor_height_widget = self.floor_height_widget
-        floor_height_regex = QRegularExpression('^(?:[1-9]\d?|100)(?:\.\d{1,2})?$')
+        floor_height_regex = QRegularExpression(r'^(?:[1-9]\d?|100)(?:\.\d{1,2})?$')
         floor_height_validator = QRegularExpressionValidator(floor_height_regex)
         floor_height_widget.setValidator(floor_height_validator)
         floor_height_widget.textChanged.connect(self.set_base_floor_height_in_table)
@@ -301,7 +305,7 @@ class MainWindow(QMainWindow):
         self.channel_height_widget = self.channel_height_item.widget()
         channel_height_widget = self.channel_height_widget
         channel_height_widget.setObjectName('channel_height')
-        channel_height_regex = QRegularExpression('^(?:[1-9]|[1-9]\d|100)(?:\.\d{1,2})?$')
+        channel_height_regex = QRegularExpression(r'^(?:[1-9]|[1-9]\d|100)(?:\.\d{1,2})?$')
         channel_height_validator = QRegularExpressionValidator(channel_height_regex)
         channel_height_widget.setValidator(channel_height_validator)
         channel_height_widget.textChanged.connect(self.calculate_height)
@@ -310,7 +314,16 @@ class MainWindow(QMainWindow):
         self.klapan_widget = CustomComboBox()
         klapan_widget = self.klapan_widget
         klapan_widget.setObjectName('klapan_widget')
-        klapan_widget.setStyleSheet('QComboBox { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; } QAbstractItemView { background-color: #E5FFCC }')
+        klapan_widget.setStyleSheet('''
+            QComboBox {
+                background-color: #E5FFCC;
+                border: 1px solid #E2E2E2;
+                border-radius: 5px;
+            }
+            QAbstractItemView {
+                background-color: #E5FFCC
+            }
+        ''')
         klapan_widget.setFixedHeight(CONSTANTS.INIT_DATA.LINE_HEIGHT)
         klapan_widget.addItems(CONSTANTS.INIT_DATA.KLAPAN_ITEMS.keys())
         for i in (1, 3, 8, 14, 21, 25, 29, 38, 47, 51):
@@ -336,7 +349,7 @@ class MainWindow(QMainWindow):
         klapan_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
         klapan_input.setStyleSheet('QLineEdit { background-color: #E0E0E0; border: 0; border-radius: 5px; }')
         klapan_input.setDisabled(True)
-        klapan_input_regex = QRegularExpression('^(?:[1-9]|[1-9]\d|100)(?:)?$')
+        klapan_input_regex = QRegularExpression(r'^(?:[1-9]|[1-9]\d|100)(?:)?$')
         klapan_input_validator = QRegularExpressionValidator(klapan_input_regex)
         klapan_input.setValidator(klapan_input_validator)
         klapan_input.setToolTip(CONSTANTS.INIT_DATA.KLAPAN_INPUT_TOOLTIP)
@@ -368,7 +381,16 @@ class MainWindow(QMainWindow):
 
         self.cap_type = QComboBox()
         cap_type = self.cap_type
-        cap_type.setStyleSheet('QComboBox { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; } QAbstractItemView { background-color: #E5FFCC }')
+        cap_type.setStyleSheet('''
+            QComboBox {
+                background-color: #E5FFCC;
+                border: 1px solid #E2E2E2;
+                border-radius: 5px;
+            }
+            QAbstractItemView {
+                background-color: #E5FFCC
+            }
+        ''')
         cap_type.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
         cap_type.setFixedWidth(125)
         cap_type.addItems(CONSTANTS.CAP.TYPES)
@@ -437,7 +459,16 @@ class MainWindow(QMainWindow):
 
         self.relations = CustomComboBox()
         relations = self.relations
-        relations.setStyleSheet('QComboBox { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; } QAbstractItemView { background-color: #E5FFCC }')
+        relations.setStyleSheet('''
+            QComboBox {
+                background-color: #E5FFCC;
+                border: 1px solid #E2E2E2;
+                border-radius: 5px;
+            }
+            QAbstractItemView {
+                background-color: #E5FFCC
+            }
+        ''')
         relations.setFixedHeight(CONSTANTS.CAP.LINE_HEIGHT)
         relations.setFixedWidth(100)
         relations.hide()
@@ -674,7 +705,7 @@ class MainWindow(QMainWindow):
         self.radio_button1 = _layout.itemAtPosition(3, 14).widget()
         self.radio_button2 = _layout.itemAtPosition(5, 14).widget()
         self.radio_button1.setChecked(True)
-        
+
         self.radio_button1.clicked.connect(self.set_sputnik_airflow_in_table_by_radiobutton_1)
         self.radio_button2.clicked.connect(self.set_sputnik_airflow_in_table_by_radiobutton_2)
 
@@ -1023,7 +1054,12 @@ class MainWindow(QMainWindow):
                 self._calculate_sputnik_klapan_pressure_loss(klapan_widget_value, hand_klapan_flow, current_klapan_flow)
 
 
-    def _calculate_sputnik_klapan_pressure_loss(self, klapan_widget_value, hand_klapan_flow, current_klapan_flow) -> None:
+    def _calculate_sputnik_klapan_pressure_loss(
+        self,
+        klapan_widget_value,
+        hand_klapan_flow,
+        current_klapan_flow
+    ) -> None:
         item = self.sputnik.itemAtPosition(1, 13).widget()
         if hand_klapan_flow or klapan_widget_value == '--':
             klapan_flow = hand_klapan_flow
@@ -1245,14 +1281,22 @@ class MainWindow(QMainWindow):
         rows = self.get_main_rows()
         for i in range(len(rows)):
             if i != len(rows) - 1:
-                rows[i].itemAtPosition(0, 10).widget().setStyleSheet('QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
+                rows[i].itemAtPosition(0, 10).widget().setStyleSheet(
+                    'QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }'
+                )
                 rows[i].itemAtPosition(0, 10).widget().setReadOnly(True)
-                rows[i].itemAtPosition(0, 11).widget().setStyleSheet('QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
+                rows[i].itemAtPosition(0, 11).widget().setStyleSheet(
+                    'QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }'
+                )
                 rows[i].itemAtPosition(0, 11).widget().setReadOnly(True)
             else:
-                rows[i].itemAtPosition(0, 10).widget().setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+                rows[i].itemAtPosition(0, 10).widget().setStyleSheet(
+                    'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
+                )
                 rows[i].itemAtPosition(0, 10).widget().setReadOnly(False)
-                rows[i].itemAtPosition(0, 11).widget().setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+                rows[i].itemAtPosition(0, 11).widget().setStyleSheet(
+                    'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
+                )
                 rows[i].itemAtPosition(0, 11).widget().setReadOnly(False)
 
 
@@ -1340,8 +1384,8 @@ class MainWindow(QMainWindow):
             rows[-1].itemAtPosition(0, 4).widget().setText(result)
 
             for i in range(len(rows) - 2, -1, -1):
-                floor_height = rows[i+1].itemAtPosition(0, 1).widget().text()
-                previous_height = rows[i+1].itemAtPosition(0, 4).widget().text()
+                floor_height = rows[i + 1].itemAtPosition(0, 1).widget().text()
+                previous_height = rows[i + 1].itemAtPosition(0, 4).widget().text()
 
                 if all([floor_height, previous_height]):
                     result = float(previous_height) - float(floor_height)
@@ -1425,25 +1469,35 @@ class MainWindow(QMainWindow):
                 result = '[+] Тяга есть'
                 row.itemAtPosition(0, 21).widget().setText(result)
                 row.itemAtPosition(0, 21).widget().setAlignment(Qt.AlignmentFlag.AlignLeft)
-                row.itemAtPosition(0, 21).widget().setStyleSheet('QLineEdit { background-color: #66CC00; border: 0; border-radius: 5px; }')
+                row.itemAtPosition(0, 21).widget().setStyleSheet(
+                    'QLineEdit { background-color: #66CC00; border: 0; border-radius: 5px; }'
+                )
             else:
                 result = '[-] Тяги нет'
                 row.itemAtPosition(0, 21).widget().setText(result)
                 row.itemAtPosition(0, 21).widget().setAlignment(Qt.AlignmentFlag.AlignLeft)
-                row.itemAtPosition(0, 21).widget().setStyleSheet('QLineEdit { background-color: #FF3333; border: 0; border-radius: 5px; }')
+                row.itemAtPosition(0, 21).widget().setStyleSheet(
+                    'QLineEdit { background-color: #FF3333; border: 0; border-radius: 5px; }'
+                )
         else:
             row.itemAtPosition(0, 21).widget().setText('')
-            row.itemAtPosition(0, 21).widget().setStyleSheet('QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }')
+            row.itemAtPosition(0, 21).widget().setStyleSheet(
+                'QLineEdit { background-color: #EFEFEF; border: 0; border-radius: 5px; }'
+            )
 
 
     def activate_klapan_input(self, value) -> None:
         if value == 'Другой':
             self.klapan_input.setDisabled(False)
-            self.klapan_input.setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+            self.klapan_input.setStyleSheet(
+                'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
+            )
         else:
             self.klapan_input.setText('')
             self.klapan_input.setDisabled(True)
-            self.klapan_input.setStyleSheet('QLineEdit { background-color: #E0E0E0; border: 0; border-radius: 5px; }')
+            self.klapan_input.setStyleSheet(
+                'QLineEdit { background-color: #E0E0E0; border: 0; border-radius: 5px; }'
+            )
 
 
     def create_deflector_calculation(self) -> object:
@@ -1461,7 +1515,9 @@ class MainWindow(QMainWindow):
                 line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 line_edit.setFixedWidth(60)
                 line_edit.setFixedHeight(30)
-                line_edit.setStyleSheet('QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }')
+                line_edit.setStyleSheet(
+                    'QLineEdit { background-color: #E5FFCC; border: 1px solid #E2E2E2; border-radius: 5px; }'
+                )
                 _layout.addWidget(line_edit, 0, 1)
             else:
                 line_label = QLineEdit()
@@ -1822,7 +1878,7 @@ class MainWindow(QMainWindow):
             one_side_flow = self.sputnik.itemAtPosition(2, 1).widget().text()
             two_side_flow = self.sputnik.itemAtPosition(4, 1).widget().text()
             if all([one_side_flow, two_side_flow]):
-                flow = str(max(float(one_side_flow),  float(two_side_flow)))
+                flow = str(max(float(one_side_flow), float(two_side_flow)))
                 sputnik_a = self.sputnik.itemAtPosition(4, 3).widget().text()
                 sputnik_b = self.sputnik.itemAtPosition(4, 4).widget().text()
                 if sputnik_b == '':
@@ -1845,7 +1901,7 @@ class MainWindow(QMainWindow):
                 self._calculate_kms_by_radiobutton(sputnik_flow, sputnik_a, sputnik_b)
 
         elif all([self.radio_button2.isChecked(), one_side_flow, two_side_flow]):
-            flow = str(max(float(one_side_flow),  float(two_side_flow)))
+            flow = str(max(float(one_side_flow), float(two_side_flow)))
             sputnik_a = self.sputnik.itemAtPosition(4, 3).widget().text()
             sputnik_b = self.sputnik.itemAtPosition(4, 4).widget().text()
             if sputnik_b == '':
@@ -1861,7 +1917,7 @@ class MainWindow(QMainWindow):
             sputnik_a, sputnik_b = int(sputnik_a), int(sputnik_b)
             rows = self.get_all_rows()
             for i in range(len(rows) - 1, 0, -1):
-                pass_flow = rows[i-1].itemAtPosition(0, 3).widget().text()
+                pass_flow = rows[i - 1].itemAtPosition(0, 3).widget().text()
                 branch_flow = rows[i].itemAtPosition(0, 3).widget().text()
                 main_a = rows[i].itemAtPosition(0, 10).widget().text()
                 main_b = rows[i].itemAtPosition(0, 11).widget().text()
@@ -1943,7 +1999,7 @@ class MainWindow(QMainWindow):
             if velocity_one and not velocity_two:
                 self._calculate_branch_pressure(velocity_one)
             elif all([velocity_one, velocity_two]):
-                velocity = str(max(float(velocity_one),  float(velocity_two)))
+                velocity = str(max(float(velocity_one), float(velocity_two)))
                 self._calculate_branch_pressure(velocity)
             else:
                 rows = self.get_all_rows()
@@ -1957,7 +2013,7 @@ class MainWindow(QMainWindow):
         if velocity_one and not velocity_two:
             self._calculate_branch_pressure(velocity_one)
         elif all([velocity_one, velocity_two]):
-            velocity = str(max(float(velocity_one),  float(velocity_two)))
+            velocity = str(max(float(velocity_one), float(velocity_two)))
             self._calculate_branch_pressure(velocity)
 
 
@@ -2129,7 +2185,7 @@ class MainWindow(QMainWindow):
                     if all([D, w, temperature]):
                         kms = 1
                         D, w, temperature = float(D), float(w), float(temperature)
-                        result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
+                        result = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
                         result = '{:.3f}'.format(round(result, 3))
                         self.cap_pressure.setText(result)
                         self._calculate_channel_cap(result)
@@ -2153,7 +2209,7 @@ class MainWindow(QMainWindow):
                     temperature = self.temperature_widget.text()
                     if all([D, w, kms, temperature]):
                         w, temperature = float(w), float(temperature)
-                        result  = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
+                        result = kms * (353 / (273.15 + temperature)) * pow(w, 2) / 2
                         result = '{:.3f}'.format(round(result, 3))
                         self.cap_pressure.setText(result)
                         self._calculate_channel_cap(result)
@@ -2176,13 +2232,19 @@ class MainWindow(QMainWindow):
 
 
     def get_all_rows(self) -> list:
-        sorted_rows = sorted([widget for widget in self.scroll_area.findChildren(QGridLayout)], key=lambda w: self.main_box.indexOf(w.parent()))
+        sorted_rows = sorted(
+            [widget for widget in self.scroll_area.findChildren(QGridLayout)],
+            key=lambda w: self.main_box.indexOf(w.parent())
+        )
         rows = list(filter(lambda w: 'row' in w.objectName(), sorted_rows))
         return rows
 
 
     def get_main_rows(self) -> list:
-        sorted_rows = sorted([widget for widget in self.scroll_area.findChildren(QGridLayout)], key=lambda w: self.main_box.indexOf(w.parent()))
+        sorted_rows = sorted(
+            [widget for widget in self.scroll_area.findChildren(QGridLayout)],
+            key=lambda w: self.main_box.indexOf(w.parent())
+        )
         rows = list(filter(lambda w: w.objectName() == 'row', sorted_rows))
         return rows
 
@@ -2261,7 +2323,11 @@ class MainWindow(QMainWindow):
             else:
                 QMessageBox.information(self, 'Проверка обновления', 'Вы используете последнюю версию')
         except KeyError:
-            QMessageBox.information(self, 'Проверка обновления', 'Проверка обновлений временно недоступна. Попробуйте, пожалуйста, попозже.')
+            QMessageBox.information(
+                self,
+                'Проверка обновления',
+                'Проверка обновлений временно недоступна. Попробуйте, пожалуйста, попозже.'
+            )
 
 
     def download_file(self, url):
@@ -2335,7 +2401,9 @@ class MainWindow(QMainWindow):
             init_data.append(init_layout.itemAtPosition(i, 1).widget().text())
 
         if not self.klapan_input.text():
-            init_data.append(f'{self.klapan_widget.currentText()} / {CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())} м3/ч')
+            init_data.append(
+                f'''{self.klapan_widget.currentText()}
+                / {CONSTANTS.INIT_DATA.KLAPAN_ITEMS.get(self.klapan_widget.currentText())} м3/ч''')
         else:
             init_data.append(f'- / {self.klapan_input.text()} м3/ч')
 
@@ -2358,7 +2426,7 @@ class MainWindow(QMainWindow):
 
         main_data = {}
         rows = self.get_all_rows()
-        main_data['num_rows'] = self.get_sum_all_rows_int()+1
+        main_data['num_rows'] = self.get_sum_all_rows_int() + 1
         cap = self.cap_type.currentText()
         if cap != CONSTANTS.CAP.TYPES[-1]:
             main_data['num_cols'] = 21
@@ -2527,7 +2595,7 @@ class MainWindow(QMainWindow):
                     values[col].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                     values[col].paragraphs[0].runs[0].font.size = Pt(10)
 
-            if  main_data['num_cols'] == 22:
+            if main_data['num_cols'] == 22:
                 a = table_3.cell(2, 6)
                 b = table_3.cell(main_data['num_rows'] - 1, 6)
                 a.merge(b)
@@ -2613,9 +2681,15 @@ class MainWindow(QMainWindow):
                 delete_paragraph(table_4.cell(0, 3).paragraphs[0])
 
                 if data['cap_1'][0] == 'Зонт':
-                    table_4.cell(0, 3).add_paragraph().add_run().add_picture(os.path.join(basedir, CONSTANTS.CAP.TYPES_IMG[0]), height=Cm(3.5))
+                    table_4.cell(0, 3).add_paragraph().add_run().add_picture(
+                        os.path.join(basedir, CONSTANTS.CAP.TYPES_IMG[0]),
+                        height=Cm(3.5)
+                    )
                 else:
-                    table_4.cell(0, 3).add_paragraph().add_run().add_picture(os.path.join(basedir, CONSTANTS.CAP.TYPES_IMG[1]), height=Cm(3.5))
+                    table_4.cell(0, 3).add_paragraph().add_run().add_picture(
+                        os.path.join(basedir, CONSTANTS.CAP.TYPES_IMG[1]),
+                        height=Cm(3.5)
+                    )
 
             if data.get('deflector_data'):
                 # add table 5
@@ -2686,7 +2760,13 @@ class MainWindow(QMainWindow):
     def open(self) -> None:
         options = QFileDialog.Options()
         open_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
-        file_name, _ = QFileDialog.getOpenFileName(self, 'Выберите файл расчёта', open_dir, 'JSON файл (*.json);;Все файлы (*)', options=options)
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            'Выберите файл расчёта',
+            open_dir,
+            'JSON файл (*.json);;Все файлы (*)',
+            options=options
+        )
         self._open_file(file_name)
 
 
@@ -2847,9 +2927,16 @@ class MainWindow(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 'Подтверждение',
-                '''<html><center>Вы уверены, что хотите закрыть программу?<br><font color="red">Несохраненный расчет будет потерян</font></center></html>
+                '''
+                    <html>
+                        <center>
+                            Вы уверены, что хотите закрыть программу?<br>
+                            <font color="red">Несохраненный расчет будет потерян</font>
+                        </center>
+                    </html>
                 ''',
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
             )
 
             if reply == QMessageBox.No:
@@ -2859,7 +2946,13 @@ class MainWindow(QMainWindow):
             else:
                 event.accept()
         else:
-            reply = QMessageBox.question(self, 'Подтверждение', 'Сохранить текущие изменения?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            reply = QMessageBox.question(
+                self,
+                'Подтверждение',
+                'Сохранить текущие изменения?',
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
 
             if reply == QMessageBox.No:
                 event.accept()
