@@ -51,7 +51,7 @@ try:
 except ImportError:
     pass
 
-version = '1.0.4'
+version = '1.0.5'
 
 
 class CustomComboBox(QComboBox):
@@ -178,6 +178,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(self.create_tab1_content(), CONSTANTS.TAB1_TITLE)
         self.tab_widget.addTab(self.create_tab2_content(), CONSTANTS.TAB2_TITLE)
         self.tab_widget.setTabVisible(1, False)
+        self.check_updates_after_start()
 
         self.showMaximized()
         self.setMaximumWidth(1680)
@@ -2328,6 +2329,26 @@ class MainWindow(QMainWindow):
                 'Проверка обновления',
                 'Проверка обновлений временно недоступна. Попробуйте, пожалуйста, попозже.'
             )
+
+
+    def check_updates_after_start(self) -> None:
+        current_version = tuple(map(int, version.split('.')))
+        url = 'https://api.github.com/repos/polnikov/air-system/releases/latest'
+        response = requests.get(url)
+        data = response.json()
+        try:
+            latest_version = tuple(map(int, data['tag_name'].replace('v', '').split('.')))
+            download_url = data['assets'][0]['browser_download_url']
+            if latest_version > current_version:
+                reply = QMessageBox.information(
+                    self, 'Проверка обновления',
+                    f'Вышла новая версия {".".join(map(str, latest_version))}. Загрузить сейчас?',
+                    QMessageBox.Yes | QMessageBox.No
+                )
+                if reply == QMessageBox.Yes:
+                    self.download_file(download_url)
+        except KeyError:
+            pass
 
 
     def download_file(self, url):
