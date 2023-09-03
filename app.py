@@ -51,7 +51,7 @@ try:
 except ImportError:
     pass
 
-version = '1.0.5'
+version = '1.0.6'
 
 
 class CustomComboBox(QComboBox):
@@ -178,10 +178,10 @@ class MainWindow(QMainWindow):
         self.tab_widget.addTab(self.create_tab1_content(), CONSTANTS.TAB1_TITLE)
         self.tab_widget.addTab(self.create_tab2_content(), CONSTANTS.TAB2_TITLE)
         self.tab_widget.setTabVisible(1, False)
-        self.check_updates_after_start()
 
         self.showMaximized()
         self.setMaximumWidth(1680)
+        self.check_updates()
 
 
     def create_tab1_content(self) -> object:
@@ -2308,47 +2308,40 @@ class MainWindow(QMainWindow):
     def check_updates(self) -> None:
         current_version = tuple(map(int, version.split('.')))
         url = 'https://api.github.com/repos/polnikov/air-system/releases/latest'
-        response = requests.get(url)
-        data = response.json()
         try:
-            latest_version = tuple(map(int, data['tag_name'].replace('v', '').split('.')))
-            download_url = data['assets'][0]['browser_download_url']
-            if latest_version > current_version:
-                reply = QMessageBox.information(
-                    self, 'Проверка обновления',
-                    f'Новая версия {".".join(map(str, latest_version))} доступна для загрузки. Загрузить сейчас?',
-                    QMessageBox.Yes | QMessageBox.No
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            try:
+                latest_version = tuple(map(int, data['tag_name'].replace('v', '').split('.')))
+                download_url = data['assets'][0]['browser_download_url']
+                if latest_version > current_version:
+                    reply = QMessageBox.information(
+                        self,
+                        'Проверка обновления',
+                        f'Вышла новая версия {".".join(map(str, latest_version))}. Загрузить сейчас?',
+                        QMessageBox.Yes | QMessageBox.No
+                    )
+                    if reply == QMessageBox.Yes:
+                        self.download_file(download_url)
+                else:
+                    QMessageBox.information(
+                        self,
+                        'Проверка обновления',
+                        'Вы используете последнюю версию'
+                    )
+            except KeyError:
+                QMessageBox.information(
+                    self,
+                    'Проверка обновления',
+                    'Проверка обновлений временно недоступна. Попробуйте, пожалуйста, попозже.'
                 )
-                if reply == QMessageBox.Yes:
-                    self.download_file(download_url)
-            else:
-                QMessageBox.information(self, 'Проверка обновления', 'Вы используете последнюю версию')
-        except KeyError:
-            QMessageBox.information(
+        except requests.exceptions.ConnectionError:
+            QMessageBox.critical(
                 self,
                 'Проверка обновления',
-                'Проверка обновлений временно недоступна. Попробуйте, пожалуйста, попозже.'
+                'Невозможно проверить обновления т.к. отсутствует соединение с интернетом'
             )
-
-
-    def check_updates_after_start(self) -> None:
-        current_version = tuple(map(int, version.split('.')))
-        url = 'https://api.github.com/repos/polnikov/air-system/releases/latest'
-        response = requests.get(url)
-        data = response.json()
-        try:
-            latest_version = tuple(map(int, data['tag_name'].replace('v', '').split('.')))
-            download_url = data['assets'][0]['browser_download_url']
-            if latest_version > current_version:
-                reply = QMessageBox.information(
-                    self, 'Проверка обновления',
-                    f'Вышла новая версия {".".join(map(str, latest_version))}. Загрузить сейчас?',
-                    QMessageBox.Yes | QMessageBox.No
-                )
-                if reply == QMessageBox.Yes:
-                    self.download_file(download_url)
-        except KeyError:
-            pass
 
 
     def download_file(self, url):
